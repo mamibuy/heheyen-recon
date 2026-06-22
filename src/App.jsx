@@ -217,7 +217,7 @@ function MappingPage() {
 
   async function saveRow(r) {
     const payload = { ...r }
-    delete payload.created_at; delete payload.updated_at
+    delete payload.id; delete payload.created_at; delete payload.updated_at
     payload.qty = parseFloat(payload.qty) || 0
     payload.sort_order = parseInt(payload.sort_order) || 0
     const { error } = r.id
