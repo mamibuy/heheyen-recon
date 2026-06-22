@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx'
 import { PARSERS, detectPlatform } from './parsers.js'
 import { buildBlocks } from './transform.js'
 import { RECON_PARSERS, GATEWAY_LABELS, detectGateway } from './recon_parsers.js'
-import { reconcile } from './reconcile.js'
+import { reconcile, previewInvoice, applyInvoice } from './reconcile.js'
 
 // ====== Supabase（沿用 Mamibuy 專案）======
 const supabase = createClient(
@@ -310,14 +310,50 @@ function ReconPage() {
   const [onlyDiff, setOnlyDiff] = useState(false)
   const fileRef = useRef(null)
 
+  // 發票核對狀態
+  const [invGateway, setInvGateway] = useState('')
+  const [invNo, setInvNo] = useState('')
+  const [invDate, setInvDate] = useState('')
+  const [invAmount, setInvAmount] = useState('')
+  const [invFrom, setInvFrom] = useState('')
+  const [invTo, setInvTo] = useState('')
+  const [invPreview, setInvPreview] = useState(null)
+  const [invMsg, setInvMsg] = useState('')
+
   useEffect(() => { loadOrders() }, [])
 
   async function loadOrders() {
     const { data } = await supabase
       .from('shipping_orders')
-      .select('ref_no,platform,total,fee_total,payable,actual_in,in_date,recon_status')
+      .select('ref_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check')
       .order('created_at', { ascending: false })
     setOrders(data || [])
+  }
+
+  async function runInvoicePreview() {
+    if (!invGateway) { setInvMsg('請先選擇金流'); return }
+    setInvMsg('查詢中…'); setInvPreview(null)
+    try {
+      const result = await previewInvoice(supabase, { gateway: invGateway, dateFrom: invFrom, dateTo: invTo })
+      setInvPreview(result)
+      setInvMsg(result.orders.length ? '' : '查無符合期間的訂單')
+    } catch(e) { setInvMsg('錯誤：' + e.message) }
+  }
+
+  async function runApplyInvoice() {
+    if (!invPreview?.orders?.length) return
+    const amount = parseFloat(invAmount) || 0
+    const isMatch = amount > 0 && Math.abs(amount - invPreview.feeSum) < 0.01
+    try {
+      const count = await applyInvoice(supabase, {
+        orderIds: invPreview.orders.map(o => o.id),
+        invoiceNo: invNo, invoiceDate: invDate,
+        invoiceAmount: amount || null, isMatch,
+      })
+      setInvMsg(`已套用至 ${count} 筆訂單，核對結果：${isMatch ? '相符' : '有差異'}`)
+      setInvPreview(null)
+      loadOrders()
+    } catch(e) { setInvMsg('錯誤：' + e.message) }
   }
 
   function handleReconFile(e) {
@@ -356,7 +392,7 @@ function ReconPage() {
       銷貨單號: o.ref_no, 平台: o.platform, 應收: o.total,
       手續費: o.fee_total ?? '', 應入帳: o.payable ?? '',
       實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
-      差異: calcDiff(o) ?? '', 狀態: o.recon_status,
+      差異: calcDiff(o) ?? '', 狀態: o.recon_status, 發票核對: o.invoice_check ?? '',
     }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), '對帳清單')
@@ -434,7 +470,7 @@ function ReconPage() {
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
             <thead>
               <tr>
-                {['銷貨單號', '平台', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態'].map(c =>
+                {['銷貨單號', '平台', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票核對'].map(c =>
                   <th key={c} style={th}>{c}</th>)}
               </tr>
             </thead>
@@ -460,15 +496,103 @@ function ReconPage() {
                         {o.recon_status || '—'}
                       </span>
                     </td>
+                    <td style={td}>
+                      {o.invoice_check && (
+                        <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
+                          background: o.invoice_check === '相符' ? C.brandBg : C.warnBg,
+                          color: o.invoice_check === '相符' ? C.brand : C.warn }}>
+                          {o.invoice_check}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
               {shown.length === 0 && (
-                <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={10} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
         </div>
+      </Card>
+
+      {/* 第三區：發票核對 */}
+      <Card>
+        <strong style={{ fontSize: 15 }}>發票核對（手續費進項發票）</strong>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-end' }}>
+          <Field label="金流">
+            <select value={invGateway} onChange={e => setInvGateway(e.target.value)} style={inp}>
+              <option value="">請選擇</option>
+              {Object.entries(GATEWAY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="發票號碼">
+            <input value={invNo} onChange={e => setInvNo(e.target.value)} placeholder="AB-12345678" style={inp} />
+          </Field>
+          <Field label="發票日期">
+            <input type="date" value={invDate} onChange={e => setInvDate(e.target.value)} style={inp} />
+          </Field>
+          <Field label="發票金額">
+            <input type="number" value={invAmount} onChange={e => setInvAmount(e.target.value)} placeholder="0" style={inp} />
+          </Field>
+          <Field label="涵蓋期間起">
+            <input type="date" value={invFrom} onChange={e => setInvFrom(e.target.value)} style={inp} />
+          </Field>
+          <Field label="涵蓋期間訖">
+            <input type="date" value={invTo} onChange={e => setInvTo(e.target.value)} style={inp} />
+          </Field>
+          <div style={{ paddingBottom: 2 }}>
+            <button onClick={runInvoicePreview} style={btnPrimary}>查詢</button>
+          </div>
+        </div>
+
+        {invMsg && (
+          <p style={{ marginTop: 10, marginBottom: 0, fontSize: 13,
+            color: invMsg.includes('錯誤') || invMsg.includes('差異') ? C.danger : invMsg.includes('相符') ? C.brand : C.sub }}>
+            {invMsg}
+          </p>
+        )}
+
+        {invPreview && invPreview.orders.length > 0 && (() => {
+          const amount = parseFloat(invAmount) || 0
+          const diff = amount > 0 ? Math.round((amount - invPreview.feeSum) * 100) / 100 : null
+          const isMatch = diff != null && Math.abs(diff) < 0.01
+          return (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 12,
+                padding: '10px 14px', background: isMatch ? C.brandBg : diff != null ? C.warnBg : '#f5f5f5', borderRadius: 8 }}>
+                <span style={{ fontSize: 13 }}>手續費加總：<strong>{invPreview.feeSum.toLocaleString()}</strong></span>
+                {amount > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{amount.toLocaleString()}</strong></span>}
+                {diff != null && (
+                  <span style={{ fontSize: 13, color: isMatch ? C.brand : C.danger, fontWeight: 600 }}>
+                    差異：{diff.toLocaleString()}　{isMatch ? '✓ 相符' : '✗ 有差異'}
+                  </span>
+                )}
+                <span style={{ fontSize: 13, color: C.sub }}>共 {invPreview.orders.length} 筆</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <button onClick={runApplyInvoice} style={btnPrimary}>套用至這批訂單</button>
+                <button onClick={() => setInvPreview(null)} style={btnGhost}>取消</button>
+              </div>
+              <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto' }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+                  <thead>
+                    <tr>{['銷貨單號', '入帳日', '手續費'].map(c => <th key={c} style={th}>{c}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {invPreview.orders.map((o, i) => (
+                      <tr key={i}>
+                        <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                        <td style={td}>{o.in_date || o.order_date || '—'}</td>
+                        <td style={{ ...td, textAlign: 'right' }}>{(o.fee_total ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
       </Card>
     </div>
   )

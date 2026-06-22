@@ -4,6 +4,57 @@
 // ============================================================
 import { stripDash } from './recon_parsers.js'
 
+// 發票核對：gateway → DB 的 platform 欄位
+const GATEWAY_PLATFORM = {
+  shopee: '蝦皮', linepay: 'LINE商城', lanxin: 'LINE商城',
+  coupang: '酷澎', payuni_cc: '官網', payuni_linepay: '官網',
+}
+
+// 同一平台下用 pay_method 區分金流（LINE商城/官網各有兩條）
+function matchesGateway(order, gateway) {
+  const pm = String(order.pay_method || '').toLowerCase().replace('_', ' ')
+  if (gateway === 'linepay') return pm.includes('line')
+  if (gateway === 'lanxin') return !pm.includes('line')
+  if (gateway === 'payuni_linepay') return pm.includes('line pay') || pm.includes('linepay')
+  if (gateway === 'payuni_cc') return !(pm.includes('line pay') || pm.includes('linepay'))
+  return true
+}
+
+// 撈出某金流、某期間的訂單並加總 fee_total，供使用者確認後套用
+export async function previewInvoice(supabase, { gateway, dateFrom, dateTo }) {
+  const platform = GATEWAY_PLATFORM[gateway]
+  if (!platform) throw new Error('未知金流：' + gateway)
+  const { data, error } = await supabase
+    .from('shipping_orders')
+    .select('id,ref_no,fee_total,in_date,order_date,pay_method')
+    .eq('platform', platform)
+  if (error) throw new Error(error.message)
+  const orders = (data || []).filter(o => {
+    if (!matchesGateway(o, gateway)) return false
+    const d = o.in_date || o.order_date || ''
+    if (dateFrom && d < dateFrom) return false
+    if (dateTo && d > dateTo) return false
+    return true
+  })
+  const feeSum = Math.round(orders.reduce((s, o) => s + (o.fee_total || 0), 0) * 100) / 100
+  return { orders, feeSum }
+}
+
+// 把進項發票資訊寫入這批訂單，並標記 invoice_check
+export async function applyInvoice(supabase, { orderIds, invoiceNo, invoiceDate, invoiceAmount, isMatch }) {
+  const { error } = await supabase
+    .from('shipping_orders')
+    .update({
+      fee_invoice_no: invoiceNo || null,
+      fee_invoice_date: invoiceDate || null,
+      fee_invoice_amount: invoiceAmount || null,
+      invoice_check: isMatch ? '相符' : '有差異',
+    })
+    .in('id', orderIds)
+  if (error) throw new Error(error.message)
+  return orderIds.length
+}
+
 export async function reconcile(supabase, gateway, parsedRows) {
   const { data: orders, error } = await supabase
     .from('shipping_orders')
