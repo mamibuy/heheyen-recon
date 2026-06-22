@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 import { PARSERS, detectPlatform } from './parsers.js'
 import { buildBlocks } from './transform.js'
+import { RECON_PARSERS, GATEWAY_LABELS, detectGateway } from './recon_parsers.js'
+import { reconcile } from './reconcile.js'
 
 // ====== Supabase（沿用 Mamibuy 專案）======
 const supabase = createClient(
@@ -29,11 +31,14 @@ export default function App() {
           <nav style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
             <TabBtn active={tab === 'convert'} onClick={() => setTab('convert')}>出貨轉換</TabBtn>
             <TabBtn active={tab === 'mapping'} onClick={() => setTab('mapping')}>商品對照表</TabBtn>
+            <TabBtn active={tab === 'recon'} onClick={() => setTab('recon')}>金流對帳</TabBtn>
           </nav>
         </div>
       </header>
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: 20 }}>
-        {tab === 'convert' ? <ConvertPage /> : <MappingPage />}
+        {tab === 'convert' && <ConvertPage />}
+        {tab === 'mapping' && <MappingPage />}
+        {tab === 'recon' && <ReconPage />}
       </main>
     </div>
   )
@@ -289,6 +294,199 @@ function MappingPage() {
       {editing && <EditModal row={editing} onClose={() => setEditing(null)} onSave={saveRow} />}
     </div>
   )
+}
+
+// ============================================================
+// 金流對帳頁
+// ============================================================
+function ReconPage() {
+  const [gateway, setGateway] = useState('')
+  const [fileName, setFileName] = useState('')
+  const [reconMsg, setReconMsg] = useState('')
+  const [reconResult, setReconResult] = useState(null)
+  const [orders, setOrders] = useState([])
+  const [filterPlatform, setFilterPlatform] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [onlyDiff, setOnlyDiff] = useState(false)
+  const fileRef = useRef(null)
+
+  useEffect(() => { loadOrders() }, [])
+
+  async function loadOrders() {
+    const { data } = await supabase
+      .from('shipping_orders')
+      .select('ref_no,platform,total,fee_total,payable,actual_in,in_date,recon_status')
+      .order('created_at', { ascending: false })
+    setOrders(data || [])
+  }
+
+  function handleReconFile(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setFileName(f.name)
+    const reader = new FileReader()
+    reader.onload = async (ev) => {
+      const wb = XLSX.read(ev.target.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      const headers = rows.length ? Object.keys(rows[0]) : []
+      const detected = detectGateway(headers)
+      const useGateway = gateway || detected
+      if (!useGateway) {
+        setReconMsg('無法自動辨識金流，請手動選擇金流後重新上傳。')
+        return
+      }
+      setGateway(useGateway)
+      setReconMsg('比對中…')
+      try {
+        const parsed = RECON_PARSERS[useGateway](rows)
+        const result = await reconcile(supabase, useGateway, parsed)
+        setReconResult(result)
+        setReconMsg(`已辨識為「${GATEWAY_LABELS[useGateway]}」：比對 ${parsed.length} 筆、回填 ${result.updated} 筆、未對應 ${result.unmatched.length} 筆。`)
+        loadOrders()
+      } catch (err) {
+        setReconMsg('錯誤：' + err.message)
+      }
+    }
+    reader.readAsArrayBuffer(f)
+  }
+
+  function exportRecon() {
+    const data = shown.map(o => ({
+      銷貨單號: o.ref_no, 平台: o.platform, 應收: o.total,
+      手續費: o.fee_total ?? '', 應入帳: o.payable ?? '',
+      實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
+      差異: calcDiff(o) ?? '', 狀態: o.recon_status,
+    }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), '對帳清單')
+    XLSX.writeFile(wb, `對帳清單_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  function calcDiff(o) {
+    if (o.actual_in != null && o.payable != null)
+      return Math.round((o.actual_in - o.payable) * 100) / 100
+    return null
+  }
+
+  const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
+
+  const shown = orders.filter(o => {
+    if (filterPlatform && o.platform !== filterPlatform) return false
+    if (filterStatus && o.recon_status !== filterStatus) return false
+    if (onlyDiff) { const d = calcDiff(o); if (d == null || d === 0) return false }
+    return true
+  })
+
+  return (
+    <div>
+      <Card>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 13, color: C.sub }}>金流（留空自動辨識）</label>
+          <select value={gateway} onChange={e => setGateway(e.target.value)} style={{ ...inp, width: 'auto' }}>
+            <option value="">自動辨識</option>
+            {Object.entries(GATEWAY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleReconFile} style={{ display: 'none' }} />
+          <button onClick={() => fileRef.current.click()} style={btnPrimary}>上傳撥款明細</button>
+          {fileName && <span style={{ fontSize: 13, color: C.sub }}>{fileName}</span>}
+        </div>
+        {reconMsg && (
+          <p style={{ marginTop: 12, marginBottom: 0, fontSize: 13,
+            color: reconMsg.includes('錯誤') || reconMsg.includes('無法') ? C.danger : C.brand }}>
+            {reconMsg}
+          </p>
+        )}
+        {reconResult?.unmatched?.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 13, color: C.warn, margin: '0 0 4px' }}>未對應訂單編號：</p>
+            <ul style={{ fontSize: 12, color: C.sub, margin: 0, paddingLeft: 18 }}>
+              {reconResult.unmatched.slice(0, 10).map((k, i) => <li key={i}>{k}</li>)}
+              {reconResult.unmatched.length > 10 && <li>…等共 {reconResult.unmatched.length} 筆</li>}
+            </ul>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} style={{ ...inp, width: 'auto' }}>
+              <option value="">全部平台</option>
+              {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
+              <option value="">全部狀態</option>
+              {STATUSES.map(s => <option key={s}>{s}</option>)}
+            </select>
+            <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+              <input type="checkbox" checked={onlyDiff} onChange={e => setOnlyDiff(e.target.checked)} />
+              只看有差異
+            </label>
+            <span style={{ fontSize: 13, color: C.sub }}>{shown.length} 筆</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={loadOrders} style={btnGhost}>重新整理</button>
+            <button onClick={exportRecon} style={btnPrimary}>匯出 Excel</button>
+          </div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['銷貨單號', '平台', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態'].map(c =>
+                  <th key={c} style={th}>{c}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((o, i) => {
+                const d = calcDiff(o)
+                const hasDiff = d != null && d !== 0
+                return (
+                  <tr key={i}>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
+                    <td style={td}>{o.platform}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
+                    <td style={td}>{o.in_date || '—'}</td>
+                    <td style={{ ...td, textAlign: 'right', color: hasDiff ? C.danger : C.ink, fontWeight: hasDiff ? 600 : 400 }}>
+                      {d != null ? d.toLocaleString() : '—'}
+                    </td>
+                    <td style={td}>
+                      <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
+                        background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
+                        {o.recon_status || '—'}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+              {shown.length === 0 && (
+                <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function statusBg(s) {
+  if (s === '已對帳') return C.brandBg
+  if (s === '已入帳') return '#e6f4f1'
+  if (s === '平台已結算') return '#edf2fb'
+  if (s === '已出貨') return '#f5f5f5'
+  return C.warnBg
+}
+function statusColor(s) {
+  if (s === '已對帳') return C.brand
+  if (s === '已入帳') return '#1d7a6f'
+  if (s === '平台已結算') return '#2c5282'
+  if (s === '已出貨') return C.sub
+  return C.warn
 }
 
 function EditModal({ row, onClose, onSave }) {

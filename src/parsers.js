@@ -153,4 +153,4 @@ export function detectPlatform(headers) {
   return '';
 }
 
-export { num, pick };
+export { num, pick, excelDate };
