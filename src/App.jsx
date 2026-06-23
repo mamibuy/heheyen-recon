@@ -542,6 +542,7 @@ function GatewayWorkspace({ gateway }) {
         sa_no: updates.sa_no || null,
         recon_status: updates.recon_status || null,
         note: updates.note || null,
+        fee_invoice_no: updates.fee_invoice_no || null,
       })
       .eq('id', updates.id)
     if (error) { setEditMsg('錯誤：' + error.message); return }
@@ -571,7 +572,7 @@ function GatewayWorkspace({ gateway }) {
     const data = shownOrders.map(o => ({
       銷貨單號: o.sa_no ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
-      差異: calcDiff(o) ?? '', 狀態: o.recon_status, 發票核對: o.invoice_check ?? '',
+      差異: calcDiff(o) ?? '', 狀態: o.recon_status, 發票號碼: o.fee_invoice_no ?? '', 發票核對: o.invoice_check ?? '',
     }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), gwInfo.label || '對帳')
@@ -584,7 +585,7 @@ function GatewayWorkspace({ gateway }) {
     '銷貨單號': 'sa_no', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
     '應收': 'total', '手續費': 'fee_total', '應入帳': 'payable',
     '實際入帳': 'actual_in', '入帳日': 'in_date', '差異': '_diff',
-    '狀態': 'recon_status', '發票核對': 'invoice_check',
+    '狀態': 'recon_status', '發票號碼': 'fee_invoice_no', '發票核對': 'invoice_check',
   }
 
   function handleSort(col) {
@@ -715,7 +716,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票核對'].map(c => {
+                {['銷貨單號', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票號碼', '發票核對'].map(c => {
                   const key = SORT_KEY[c]
                   const active = sortCol === key
                   return (
@@ -759,6 +760,7 @@ function GatewayWorkspace({ gateway }) {
                         {o.recon_status || '—'}
                       </span>
                     </td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.fee_invoice_no || '—'}</td>
                     <td style={td}>
                       {o.invoice_check && (
                         <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
@@ -772,7 +774,7 @@ function GatewayWorkspace({ gateway }) {
                 )
               })}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={14} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
@@ -878,6 +880,10 @@ function GatewayWorkspace({ gateway }) {
               <select value={editOrder.recon_status || ''} onChange={e => setEditOrder(p => ({ ...p, recon_status: e.target.value }))} style={inp}>
                 {['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳'].map(s => <option key={s}>{s}</option>)}
               </select>
+            </Field>
+            <Field label="發票號碼">
+              <input value={editOrder.fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, fee_invoice_no: e.target.value }))}
+                placeholder="AB-12345678" style={inp} />
             </Field>
             <Field label="備註">
               <input value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} style={inp} />
