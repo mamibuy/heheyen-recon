@@ -889,15 +889,23 @@ function GatewayWorkspace({ gateway }) {
           </div>
 
           {bankRows.length > 0 && (() => {
-            // 從已上傳的撥款報表（rows1）建立「預計撥款日 → 預計金額」對照表
+            // 從已上傳的撥款報表（rows1）建立「銀行入帳日 → 預計金額」對照表
+            // 蘭新信用卡撥款日隔天才到玉山帳戶，所以用 payoutDate+1 當 bankDate
             const linepayByDate = {}
             const payoutParser = isLanxin ? RECON_PARSERS.lanxin : RECON_PARSERS.linepay
             if (rows1) {
               payoutParser(rows1).forEach(r => {
-                if (!r.in_date) return
-                if (!linepayByDate[r.in_date]) linepayByDate[r.in_date] = { expected: 0, count: 0 }
-                linepayByDate[r.in_date].expected += r.payable || 0
-                linepayByDate[r.in_date].count++
+                const payoutDate = (r.in_date || '').slice(0, 10)
+                if (!payoutDate) return
+                let bankDate = payoutDate
+                if (isLanxin) {
+                  const d = new Date(payoutDate + 'T00:00:00Z')
+                  d.setUTCDate(d.getUTCDate() + 1)
+                  bankDate = d.toISOString().slice(0, 10)
+                }
+                if (!linepayByDate[bankDate]) linepayByDate[bankDate] = { expected: 0, count: 0, payoutDate }
+                linepayByDate[bankDate].expected += r.payable || 0
+                linepayByDate[bankDate].count++
               })
             }
             const hasPayoutMap = Object.keys(linepayByDate).length > 0
@@ -921,7 +929,8 @@ function GatewayWorkspace({ gateway }) {
                     const diff = expected != null ? Math.round((br.deposit - expected) * 100) / 100 : null
                     const isMatch = diff != null && Math.abs(diff) <= 2
                     const expanded = !!bankExpanded[idx]
-                    const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === br.date)
+                    const matchDate = payoutInfo?.payoutDate || br.date
+                    const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
                     const ordersPayable = Math.round(dateOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
                     return (
                       <div key={idx} style={{ border: `1.5px solid ${isMatch ? C.brand : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: isMatch ? '#f0faf5' : '#fff' }}>
@@ -929,7 +938,7 @@ function GatewayWorkspace({ gateway }) {
                           <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
                           {expected != null && (
                             <span style={{ fontSize: 13, color: C.sub }}>
-                              LINE Pay 預計：<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）
+                              {isLanxin ? '蘭新預計撥款：' : 'LINE Pay 預計：'}<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）{payoutInfo.payoutDate && isLanxin && <span style={{ fontSize: 11, marginLeft: 4 }}>撥款日 {payoutInfo.payoutDate}</span>}
                             </span>
                           )}
                           <span style={{ fontSize: 13 }}>

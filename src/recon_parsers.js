@@ -49,7 +49,7 @@ function parseLanxinRecon(rows) {
   return rows.map(r => {
     const fee = num(pick(r, ['主支付手續費']))
     const total = num(pick(r, ['訂單總金額']))
-    const payout_date = excelDate(pick(r, ['預計撥款日'])) || null
+    const payout_date = (excelDate(pick(r, ['預計撥款日'])) || '').slice(0, 10) || null
     return {
       key: String(pick(r, ['商店訂單編號'])).trim(),
       key_type: 'ref_no',
