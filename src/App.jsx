@@ -921,7 +921,7 @@ function GatewayWorkspace({ gateway }) {
                     const diff = expected != null ? Math.round((br.deposit - expected) * 100) / 100 : null
                     const isMatch = diff != null && Math.abs(diff) <= 2
                     const expanded = !!bankExpanded[idx]
-                    const dateOrders = orders.filter(o => o.in_date === br.date)
+                    const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === br.date)
                     const ordersPayable = Math.round(dateOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
                     return (
                       <div key={idx} style={{ border: `1.5px solid ${isMatch ? C.brand : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: isMatch ? '#f0faf5' : '#fff' }}>
@@ -979,7 +979,7 @@ function GatewayWorkspace({ gateway }) {
                                     <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
                                     <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
                                     <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>
-                                    <td style={{ padding: '4px 6px', color: br.actualDate !== o.in_date ? C.warn : '#222' }}>{br.actualDate || '—'}</td>
+                                    <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>
                                     <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
                                   </tr>
                                 ))}
