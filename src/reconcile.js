@@ -46,7 +46,7 @@ export async function loadGatewayOrders(supabase, gateway) {
   if (!platform) return []
   const { data } = await supabase
     .from('shipping_orders')
-    .select('id,ref_no,sa_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,fee_invoice_date,fee_invoice_amount,account_fee_note,order_invoice_no')
+    .select('id,ref_no,sa_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,fee_invoice_date,fee_invoice_amount,account_fee_note,order_invoice_no,tx_code,tx_fee')
     .eq('platform', platform)
     .order('created_at', { ascending: false })
   return (data || []).filter(o => matchesGateway(o, gateway))
@@ -101,9 +101,13 @@ export async function reconcile(supabase, gateway, parsedRows) {
     const in_date = row.in_date || null
     const recon_status = actual_in != null ? '已入帳' : '平台已結算'
 
+    const updates = { fee_total, payable, actual_in, in_date, recon_status }
+    if (row.tx_code !== undefined) updates.tx_code = row.tx_code ?? null
+    if (row.tx_fee !== undefined) updates.tx_fee = row.tx_fee ?? null
+
     const { error: updateError } = await supabase
       .from('shipping_orders')
-      .update({ fee_total, payable, actual_in, in_date, recon_status })
+      .update(updates)
       .eq('id', order.id)
 
     if (!updateError) {

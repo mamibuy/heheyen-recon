@@ -178,6 +178,6 @@ export function parseOfficialLinePayReconDual(d1rows, d2rows) {
     const total = num(pick(r, ['付款金額', '交易金額']))
     const fee = feeByTx[txCode] ?? 0
     const in_date = excelDate(pick(r, ['入帳日期', '撥款日期'])) || null
-    return { key, key_type: 'ref_no_nodash', fee, payable: total - fee, actual_in: null, in_date, payout_date: in_date }
+    return { key, key_type: 'ref_no_nodash', fee, payable: total - fee, actual_in: null, in_date, payout_date: in_date, tx_code: txCode || null, tx_fee: fee }
   }).filter(r => r.key)
 }

@@ -677,7 +677,7 @@ function GatewayWorkspace({ gateway }) {
 
   function exportOrders() {
     const data = shownOrders.map(o => ({
-      銷貨單號: o.sa_no ?? '', 訂單發票號碼: o.order_invoice_no ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '',
+      銷貨單號: o.sa_no ?? '', 訂單發票號碼: o.order_invoice_no ?? '', 對應碼: o.tx_code ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '', 交易處理費: o.tx_fee ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
       差異: calcDiff(o) ?? '', 狀態: o.recon_status, 手續費發票號碼: o.fee_invoice_no ?? '',
     }))
@@ -689,8 +689,8 @@ function GatewayWorkspace({ gateway }) {
   const months = [...new Set(orders.map(o => (o.order_date || '').slice(0, 7)).filter(Boolean))].sort().reverse()
 
   const SORT_KEY = {
-    '銷貨單號': 'sa_no', '訂單發票號碼': 'order_invoice_no', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
-    '應收': 'total', '手續費': 'fee_total', '應入帳': 'payable',
+    '銷貨單號': 'sa_no', '訂單發票號碼': 'order_invoice_no', '對應碼': 'tx_code', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
+    '應收': 'total', '手續費': 'fee_total', '交易處理費': 'tx_fee', '應入帳': 'payable',
     '實際入帳': 'actual_in', '入帳日': 'in_date', '差異': '_diff',
     '狀態': 'recon_status', '手續費發票號碼': 'fee_invoice_no',
   }
@@ -841,7 +841,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '訂單發票號碼', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '手續費發票號碼'].map(c => {
+                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '手續費發票號碼'].map(c => {
                   const key = SORT_KEY[c]
                   const active = sortCol === key
                   return (
@@ -877,10 +877,12 @@ function GatewayWorkspace({ gateway }) {
                       </td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.order_invoice_no || '—'}</td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: C.sub }}>{o.tx_code || '—'}</td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
                       <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{o.tx_fee != null ? o.tx_fee.toLocaleString() : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
                       <td style={td}>{o.in_date || '—'}</td>
@@ -911,7 +913,7 @@ function GatewayWorkspace({ gateway }) {
                 })
               })()}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={14} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
