@@ -428,6 +428,7 @@ function GatewayWorkspace({ gateway }) {
   const [deleteMsg, setDeleteMsg] = useState('')
   const [editOrder, setEditOrder] = useState(null)
   const [editMsg, setEditMsg] = useState('')
+  const [viewInvKey, setViewInvKey] = useState(null)
 
   const [invMethod, setInvMethod] = useState('auto')
   const [invNo, setInvNo] = useState('')
@@ -618,7 +619,13 @@ function GatewayWorkspace({ gateway }) {
   const invoiceGroups = {}
   shownOrders.forEach(o => {
     if (!o.fee_invoice_no) return
-    if (!invoiceGroups[o.fee_invoice_no]) invoiceGroups[o.fee_invoice_no] = { invAmount: o.fee_invoice_amount ?? null, count: 0 }
+    if (!invoiceGroups[o.fee_invoice_no]) invoiceGroups[o.fee_invoice_no] = {
+      invAmount: o.fee_invoice_amount ?? null,
+      invDate: o.fee_invoice_date ?? null,
+      invoiceCheck: o.invoice_check ?? null,
+      feeSum: 0, count: 0,
+    }
+    invoiceGroups[o.fee_invoice_no].feeSum += o.fee_total || 0
     invoiceGroups[o.fee_invoice_no].count++
   })
   const INV_BG = ['#e6f4f0', '#e8edf8']   // 交替淡綠 / 淡藍
@@ -779,15 +786,18 @@ function GatewayWorkspace({ gateway }) {
                           {o.recon_status || '—'}
                         </span>
                       </td>
-                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>
+                      <td
+                        style={{ ...td, fontFamily: 'monospace', fontSize: 12, cursor: o.fee_invoice_no ? 'pointer' : 'default' }}
+                        onClick={o.fee_invoice_no ? () => setViewInvKey(o.fee_invoice_no) : undefined}
+                      >
                         {isFirstInv && grp ? (
                           <div>
-                            <div>{o.fee_invoice_no}</div>
+                            <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.fee_invoice_no}</div>
                             <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
                               {grp.count} 筆・發票金額 {grp.invAmount != null ? grp.invAmount.toLocaleString() : '—'}
                             </div>
                           </div>
-                        ) : o.fee_invoice_no ? '' : '—'}
+                        ) : o.fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
                       </td>
                     </tr>
                   )
@@ -916,6 +926,41 @@ function GatewayWorkspace({ gateway }) {
           </div>
         </div>
       )}
+
+      {/* 發票資訊 modal */}
+      {viewInvKey && (() => {
+        const grp = invoiceGroups[viewInvKey]
+        if (!grp) return null
+        const checkColor = grp.invoiceCheck === '相符' ? C.brand : grp.invoiceCheck === '有差異' ? C.danger : C.sub
+        const rows = [
+          ['發票號碼', viewInvKey],
+          ['發票日期', grp.invDate || '—'],
+          ['發票金額', grp.invAmount != null ? `NT$ ${Number(grp.invAmount).toLocaleString()}` : '—'],
+          ['手續費合計', `NT$ ${Math.round(grp.feeSum * 100) / 100}`],
+          ['包含訂單', `${grp.count} 筆`],
+          ['核對結果', grp.invoiceCheck || '—'],
+        ]
+        return (
+          <div style={overlay} onClick={() => setViewInvKey(null)}>
+            <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>發票資訊</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <tbody>
+                  {rows.map(([label, val]) => (
+                    <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>{label}</td>
+                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: label === '發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+                <button onClick={() => setViewInvKey(null)} style={btnGhost}>關閉</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 官網 LINE Pay 第二層：PayUni 帳戶層服務費 */}
       {isLinePayOfficial && (

@@ -46,7 +46,7 @@ export async function loadGatewayOrders(supabase, gateway) {
   if (!platform) return []
   const { data } = await supabase
     .from('shipping_orders')
-    .select('id,ref_no,sa_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,fee_invoice_amount,account_fee_note')
+    .select('id,ref_no,sa_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,fee_invoice_date,fee_invoice_amount,account_fee_note')
     .eq('platform', platform)
     .order('created_at', { ascending: false })
   return (data || []).filter(o => matchesGateway(o, gateway))
