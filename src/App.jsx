@@ -310,8 +310,85 @@ function MappingPage() {
 // ============================================================
 function ReconPage() {
   const [activeGateway, setActiveGateway] = useState('coupang')
+  const [txRows, setTxRows] = useState(null)
+  const [txFileName, setTxFileName] = useState('')
+  const [txMsg, setTxMsg] = useState('')
+  const [txResult, setTxResult] = useState(null)
+  const txFileRef = useRef(null)
+
+  function readTxFile(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setTxFileName(f.name)
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const wb = XLSX.read(ev.target.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      setTxRows(XLSX.utils.sheet_to_json(ws, { defval: '' }))
+    }
+    reader.readAsArrayBuffer(f)
+  }
+
+  async function handleTianxin() {
+    if (!txRows) { setTxMsg('請先上傳檔案'); return }
+    setTxMsg('比對中…'); setTxResult(null)
+
+    // 每個客戶訂單只取第一個 SA 單號（一筆訂單可能有多列商品）
+    const map = {}
+    for (const r of txRows) {
+      const ref = String(r['客戶訂單'] || '').trim()
+      const sa = String(r['單號'] || '').trim()
+      if (ref && sa.startsWith('SA') && !map[ref]) map[ref] = sa
+    }
+    const pairs = Object.entries(map)
+    if (!pairs.length) { setTxMsg('找不到 SA 開頭的單號，請確認欄位名稱'); return }
+
+    const { data: allOrders, error } = await supabase.from('shipping_orders').select('id,ref_no')
+    if (error) { setTxMsg('錯誤：' + error.message); return }
+
+    const byRef = {}
+    for (const o of (allOrders || [])) byRef[o.ref_no] = o.id
+
+    const unmatched = []
+    let updated = 0
+    for (const [ref, sa] of pairs) {
+      const id = byRef[ref]
+      if (!id) { unmatched.push(ref); continue }
+      const { error: ue } = await supabase.from('shipping_orders').update({ sa_no: sa }).eq('id', id)
+      if (!ue) updated++
+    }
+
+    setTxResult({ total: pairs.length, updated, unmatched })
+    setTxMsg(`${pairs.length} 筆訂單，回填 ${updated} 筆銷貨單號，未對應 ${unmatched.length} 筆`)
+  }
+
   return (
     <div>
+      <Card>
+        <strong style={{ fontSize: 14 }}>上傳天心銷貨單（回填銷貨單號）</strong>
+        <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
+          比對「客戶訂單」與平台訂單編號，將 SA 單號寫入銷貨單號欄位（適用所有平台）
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input ref={txFileRef} type="file" accept=".xlsx,.xls" onChange={readTxFile} style={{ display: 'none' }} />
+          <button onClick={() => txFileRef.current.click()} style={btnGhost}>{txFileName || '選擇天心銷貨單'}</button>
+          {txRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {txRows.length} 列</span>}
+          <button onClick={handleTianxin} style={btnPrimary}>比對回填</button>
+        </div>
+        {txMsg && (
+          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
+            color: txMsg.includes('錯誤') || txMsg.includes('找不到') ? C.danger : C.brand }}>
+            {txMsg}
+          </p>
+        )}
+        {txResult?.unmatched?.length > 0 && (
+          <p style={{ marginTop: 4, marginBottom: 0, fontSize: 12, color: C.warn }}>
+            未對應：{txResult.unmatched.slice(0, 8).join('、')}
+            {txResult.unmatched.length > 8 && `…等 ${txResult.unmatched.length} 筆`}
+          </p>
+        )}
+      </Card>
+
       <Card style={{ marginBottom: 0, borderRadius: '12px 12px 0 0' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {GATEWAY_LIST.map(g => (
