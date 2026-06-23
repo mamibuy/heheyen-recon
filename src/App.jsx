@@ -482,8 +482,8 @@ function GatewayWorkspace({ gateway }) {
       const ws = wb.Sheets[wb.SheetNames[0]]
       const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
       const parsed = all.slice(1)
-        .filter(r => String(r[9] || '').includes('387/'))
-        .map(r => ({ date: excelDate(r[1]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || '') }))
+        .filter(r => { const a = String(r[9] || ''); return a.includes('387/0000000060558379') || a.includes('808/1229940024585') })
+        .map(r => ({ date: excelDate(r[1]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || ''), account: String(r[9] || '') }))
         .filter(r => r.deposit > 0)
         .sort((a, b) => a.date.localeCompare(b.date))
       setBankRows(parsed)
@@ -850,7 +850,8 @@ function GatewayWorkspace({ gateway }) {
       {/* LINE Pay 銀行對帳 */}
       {isLineMallLinePay && (
         <Card>
-          <strong style={{ fontSize: 14 }}>玉山銀行對帳（LINE Pay 匯款 387/...60558379）</strong>
+          <strong style={{ fontSize: 14 }}>玉山銀行對帳（LINE Pay 匯款）</strong>
+          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>篩選帳號：387/...60558379・808/...24585</p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
             <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
             <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
@@ -874,6 +875,7 @@ function GatewayWorkspace({ gateway }) {
                     <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{br.date}</span>
                       <span style={{ fontSize: 14 }}>入帳 <strong>NT$ {br.deposit.toLocaleString()}</strong></span>
+                      <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>
                       <span style={{ fontSize: 13, color: C.sub }}>已選合計：NT$ {selSum.toLocaleString()}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
                         差異：{diff > 0 ? '+' : ''}{diff}
