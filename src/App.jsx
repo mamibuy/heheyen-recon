@@ -851,77 +851,109 @@ function GatewayWorkspace({ gateway }) {
       {isLineMallLinePay && (
         <Card>
           <strong style={{ fontSize: 14 }}>玉山銀行對帳（LINE Pay 匯款）</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>篩選帳號：387/...60558379・808/...24585</p>
+          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
+            以 LINE Pay 報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
+          </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
             <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
             <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
             {bankFileName && <span style={{ fontSize: 12, color: C.sub }}>{bankFileName}</span>}
           </div>
 
-          {bankRows.length > 0 && (
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {bankRows.map((br, idx) => {
-                const sel = bankSel[idx] || new Set()
-                const selOrders = orders.filter(o => sel.has(o.id))
-                const selSum = Math.round(selOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
-                const diff = Math.round((br.deposit - selSum) * 100) / 100
-                const isMatch = diff === 0
-                const expanded = !!bankExpanded[idx]
-                const pickerOrders = [...orders]
-                  .filter(o => o.payable != null && o.payable !== 0)
-                  .sort((a, b) => (a.in_date || '').localeCompare(b.in_date || ''))
-                return (
-                  <div key={idx} style={{ border: `1.5px solid ${isMatch ? C.brand : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: isMatch ? '#f0faf5' : '#fff' }}>
-                    <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{br.date}</span>
-                      <span style={{ fontSize: 14 }}>入帳 <strong>NT$ {br.deposit.toLocaleString()}</strong></span>
-                      <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>
-                      <span style={{ fontSize: 13, color: C.sub }}>已選合計：NT$ {selSum.toLocaleString()}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
-                        差異：{diff > 0 ? '+' : ''}{diff}
-                      </span>
-                      {isMatch && <span style={{ fontSize: 12, color: C.brand }}>✓ 相符</span>}
-                      <button
-                        onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
-                        style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
-                      >{expanded ? '收起 ▲' : `選取訂單 ▼ (${pickerOrders.length})`}</button>
-                    </div>
+          {bankRows.length > 0 && (() => {
+            // 從已上傳的 LINE Pay 撥款報表（rows1）建立「預計撥款日 → 預計金額」對照表
+            const linepayByDate = {}
+            if (rows1) {
+              RECON_PARSERS.linepay(rows1).forEach(r => {
+                if (!r.in_date) return
+                if (!linepayByDate[r.in_date]) linepayByDate[r.in_date] = { expected: 0, count: 0 }
+                linepayByDate[r.in_date].expected += r.payable || 0
+                linepayByDate[r.in_date].count++
+              })
+            }
+            const hasPayoutMap = Object.keys(linepayByDate).length > 0
 
-                    {expanded && (
-                      <div style={{ marginTop: 10, borderTop: '1px solid #f0f0f0', paddingTop: 10 }}>
-                        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ color: C.sub }}>
-                              <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}></th>
-                              <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>撥款日</th>
-                              <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
-                              <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {pickerOrders.map(o => {
-                              const checked = sel.has(o.id)
-                              const dateMatch = o.in_date === br.date
-                              return (
-                                <tr key={o.id}
-                                  onClick={() => toggleBankSel(idx, o.id)}
-                                  style={{ cursor: 'pointer', background: checked ? '#e3f4eb' : dateMatch ? '#fefce8' : 'transparent', borderRadius: 4 }}>
-                                  <td style={{ padding: '4px 6px' }}><input type="checkbox" checked={checked} readOnly onChange={() => {}} /></td>
-                                  <td style={{ padding: '4px 6px', color: dateMatch ? C.brand : '#222', fontWeight: dateMatch ? 600 : 400 }}>{o.in_date || '—'}</td>
-                                  <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
-                                  <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+            // 只顯示「日期出現在 LINE Pay 報表」的銀行入帳（自動排除同帳號但屬於其他平台的款項）
+            const displayRows = hasPayoutMap
+              ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
+              : bankRows
+
+            return (
+              <div style={{ marginTop: 14 }}>
+                {!hasPayoutMap && (
+                  <p style={{ fontSize: 12, color: C.warn, margin: '0 0 10px' }}>
+                    ⚠ 尚未上傳 LINE Pay 撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
+                  </p>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {displayRows.map((br, idx) => {
+                    const payoutInfo = linepayByDate[br.date]
+                    const expected = payoutInfo ? Math.round(payoutInfo.expected * 100) / 100 : null
+                    const diff = expected != null ? Math.round((br.deposit - expected) * 100) / 100 : null
+                    const isMatch = diff != null && Math.abs(diff) <= 2
+                    const expanded = !!bankExpanded[idx]
+                    const dateOrders = orders.filter(o => o.in_date === br.date)
+                    const ordersPayable = Math.round(dateOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                    return (
+                      <div key={idx} style={{ border: `1.5px solid ${isMatch ? C.brand : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: isMatch ? '#f0faf5' : '#fff' }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
+                          {expected != null && (
+                            <span style={{ fontSize: 13, color: C.sub }}>
+                              LINE Pay 預計：<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）
+                            </span>
+                          )}
+                          <span style={{ fontSize: 13 }}>
+                            銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong>
+                          </span>
+                          <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>
+                          {diff != null && (
+                            <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
+                              差異：{diff > 0 ? '+' : ''}{diff}
+                              {isMatch && ' ✓'}
+                            </span>
+                          )}
+                          {dateOrders.length > 0 && (
+                            <button
+                              onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
+                              style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
+                            >{expanded ? '收起 ▲' : `查看訂單 ▼ (${dateOrders.length})`}</button>
+                          )}
+                        </div>
+
+                        {expanded && dateOrders.length > 0 && (
+                          <div style={{ marginTop: 10, borderTop: '1px solid #f0f0f0', paddingTop: 10 }}>
+                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ color: C.sub }}>
+                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
+                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
+                                  <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
                                 </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
+                              </thead>
+                              <tbody>
+                                {dateOrders.map(o => (
+                                  <tr key={o.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                    <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                                    <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
+                                    <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                                <tr style={{ borderTop: '1px solid #ddd', fontWeight: 600 }}>
+                                  <td colSpan={2} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>訂單合計</td>
+                                  <td style={{ padding: '6px 6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
         </Card>
       )}
 
