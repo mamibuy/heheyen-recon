@@ -921,8 +921,11 @@ function GatewayWorkspace({ gateway }) {
       {isLinePayOfficial && (
         <Card>
           <strong style={{ fontSize: 14 }}>PayUni 服務費發票（帳戶層，0.2%）</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 12px' }}>
+          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 4px' }}>
             此費用為月結帳戶層，不逐筆計入 fee_total，請登記於備註欄供查閱。
+          </p>
+          <p style={{ fontSize: 12, color: C.sub, margin: '0 0 12px', fontStyle: 'italic' }}>
+            提示：和和研信箱中搜尋「CYICI.60481225.EC 電子發票開立通知」可找到對應發票。
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <Field label="發票號碼"><input value={inv2No} onChange={e => setInv2No(e.target.value)} placeholder="XC19745594" style={inp} /></Field>
