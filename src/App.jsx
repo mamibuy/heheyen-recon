@@ -420,7 +420,10 @@ function GatewayWorkspace({ gateway }) {
 
   const [orders, setOrders] = useState([])
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterMonth, setFilterMonth] = useState('')
   const [onlyDiff, setOnlyDiff] = useState(false)
+  const [sortCol, setSortCol] = useState('order_date')
+  const [sortDir, setSortDir] = useState('desc')
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [deleteMsg, setDeleteMsg] = useState('')
   const [editOrder, setEditOrder] = useState(null)
@@ -575,11 +578,40 @@ function GatewayWorkspace({ gateway }) {
     XLSX.writeFile(wb, `對帳_${gwInfo.label}_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  const shownOrders = orders.filter(o => {
-    if (filterStatus && o.recon_status !== filterStatus) return false
-    if (onlyDiff) { const d = calcDiff(o); if (d == null || d === 0) return false }
-    return true
-  })
+  const months = [...new Set(orders.map(o => (o.order_date || '').slice(0, 7)).filter(Boolean))].sort().reverse()
+
+  const SORT_KEY = {
+    '銷貨單號': 'sa_no', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
+    '應收': 'total', '手續費': 'fee_total', '應入帳': 'payable',
+    '實際入帳': 'actual_in', '入帳日': 'in_date', '差異': '_diff',
+    '狀態': 'recon_status', '發票核對': 'invoice_check',
+  }
+
+  function handleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
+
+  function getVal(o, key) {
+    if (key === '_diff') return calcDiff(o) ?? -Infinity
+    const v = o[key]
+    return v == null ? '' : v
+  }
+
+  const shownOrders = orders
+    .filter(o => {
+      if (filterStatus && o.recon_status !== filterStatus) return false
+      if (filterMonth && (o.order_date || '').slice(0, 7) !== filterMonth) return false
+      if (onlyDiff) { const d = calcDiff(o); if (d == null || d === 0) return false }
+      return true
+    })
+    .sort((a, b) => {
+      const va = getVal(a, sortCol), vb = getVal(b, sortCol)
+      const cmp = typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'zh-Hant')
+      return sortDir === 'asc' ? cmp : -cmp
+    })
 
   const invFeeSum = invPreview?.feeSum ?? (invMethod === 'manual' ? manualFeeSum : null)
   const invAmountNum = parseFloat(invAmount) || 0
@@ -648,6 +680,10 @@ function GatewayWorkspace({ gateway }) {
       <Card>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, width: 'auto' }}>
+              <option value="">全部月份</option>
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
               <option value="">全部狀態</option>
               {STATUSES.map(s => <option key={s}>{s}</option>)}
@@ -679,8 +715,16 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票核對'].map(c =>
-                  <th key={c} style={th}>{c}</th>)}
+                {['銷貨單號', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票核對'].map(c => {
+                  const key = SORT_KEY[c]
+                  const active = sortCol === key
+                  return (
+                    <th key={c} style={{ ...th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                      onClick={() => key && handleSort(key)}>
+                      {c}{active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
