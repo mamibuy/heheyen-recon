@@ -408,6 +408,7 @@ function GatewayWorkspace({ gateway }) {
   const isTwoFile = !!gwInfo.twoFile
   const isLinePayOfficial = gateway === 'payuni_linepay'
   const isLineMallLinePay = gateway === 'linepay'
+  const isLanxin = gateway === 'lanxin'
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
   const [rows1, setRows1] = useState(null)
@@ -483,7 +484,12 @@ function GatewayWorkspace({ gateway }) {
       const ws = wb.Sheets[wb.SheetNames[0]]
       const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
       const parsed = all.slice(1)
-        .filter(r => { const a = String(r[9] || ''); return a.includes('387/0000000060558379') || a.includes('808/1229940024585') })
+        .filter(r => {
+          const a = String(r[9] || '')
+          if (isLineMallLinePay) return a.includes('387/0000000060558379') || a.includes('808/1229940024585')
+          if (isLanxin) return a.includes('008/0000158100035101')
+          return false
+        })
         .map(r => ({ date: excelDate(r[1]), actualDate: excelDate(r[2]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || ''), account: String(r[9] || '') }))
         .filter(r => r.deposit > 0)
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -867,12 +873,14 @@ function GatewayWorkspace({ gateway }) {
         </div>
       </Card>
 
-      {/* LINE Pay 銀行對帳 */}
-      {isLineMallLinePay && (
+      {/* LINE Pay / 信用卡 銀行對帳 */}
+      {(isLineMallLinePay || isLanxin) && (
         <Card>
-          <strong style={{ fontSize: 14 }}>玉山銀行對帳（LINE Pay 匯款）</strong>
+          <strong style={{ fontSize: 14 }}>
+            玉山銀行對帳（{isLanxin ? '信用卡 008/...35101' : 'LINE Pay 387/...60558379・808/...24585'}）
+          </strong>
           <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            以 LINE Pay 報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
+            以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
             <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
@@ -881,10 +889,11 @@ function GatewayWorkspace({ gateway }) {
           </div>
 
           {bankRows.length > 0 && (() => {
-            // 從已上傳的 LINE Pay 撥款報表（rows1）建立「預計撥款日 → 預計金額」對照表
+            // 從已上傳的撥款報表（rows1）建立「預計撥款日 → 預計金額」對照表
             const linepayByDate = {}
+            const payoutParser = isLanxin ? RECON_PARSERS.lanxin : RECON_PARSERS.linepay
             if (rows1) {
-              RECON_PARSERS.linepay(rows1).forEach(r => {
+              payoutParser(rows1).forEach(r => {
                 if (!r.in_date) return
                 if (!linepayByDate[r.in_date]) linepayByDate[r.in_date] = { expected: 0, count: 0 }
                 linepayByDate[r.in_date].expected += r.payable || 0
