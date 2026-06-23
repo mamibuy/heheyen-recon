@@ -346,6 +346,8 @@ function GatewayWorkspace({ gateway }) {
   const [onlyDiff, setOnlyDiff] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [deleteMsg, setDeleteMsg] = useState('')
+  const [editOrder, setEditOrder] = useState(null)
+  const [editMsg, setEditMsg] = useState('')
 
   const [invMethod, setInvMethod] = useState('auto')
   const [invNo, setInvNo] = useState('')
@@ -449,6 +451,22 @@ function GatewayWorkspace({ gateway }) {
     if (!ids.length) { setInv2Msg('無訂單可套用'); return }
     const { error } = await supabase.from('shipping_orders').update({ account_fee_note: note }).in('id', ids)
     setInv2Msg(error ? '錯誤：' + error.message : `已記錄至 ${ids.length} 筆`)
+    loadOrders()
+  }
+
+  async function saveEditOrder(updates) {
+    setEditMsg('儲存中…')
+    const { error } = await supabase
+      .from('shipping_orders')
+      .update({
+        sa_no: updates.sa_no || null,
+        recon_status: updates.recon_status || null,
+        note: updates.note || null,
+      })
+      .eq('id', updates.id)
+    if (error) { setEditMsg('錯誤：' + error.message); return }
+    setEditMsg('')
+    setEditOrder(null)
     loadOrders()
   }
 
@@ -578,6 +596,7 @@ function GatewayWorkspace({ gateway }) {
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
             <thead>
               <tr>
+                <th style={th}></th>
                 <th style={th}>
                   <input type="checkbox"
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
@@ -594,6 +613,13 @@ function GatewayWorkspace({ gateway }) {
                   <tr key={i} style={{ background: selectedIds.has(o.id) ? C.brandBg : undefined }}>
                     <td style={td}>
                       <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)} />
+                    </td>
+                    <td style={td}>
+                      <button onClick={() => { setEditOrder({ ...o }); setEditMsg('') }}
+                        style={{ fontSize: 12, padding: '2px 8px', border: `1px solid ${C.line}`,
+                          borderRadius: 6, background: '#fff', cursor: 'pointer', color: C.sub }}>
+                        編輯
+                      </button>
                     </td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
@@ -625,7 +651,7 @@ function GatewayWorkspace({ gateway }) {
                 )
               })}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={12} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
@@ -716,6 +742,33 @@ function GatewayWorkspace({ gateway }) {
           </p>
         )}
       </Card>
+
+      {/* 編輯 modal */}
+      {editOrder && (
+        <div style={overlay} onClick={() => setEditOrder(null)}>
+          <div style={modal} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, fontSize: 15 }}>編輯訂單</h3>
+            <p style={{ fontSize: 12, color: C.sub, margin: '0 0 12px' }}>平台訂單編號：{editOrder.ref_no}</p>
+            <Field label="銷貨單號（ERP SA 單號）">
+              <input value={editOrder.sa_no || ''} onChange={e => setEditOrder(p => ({ ...p, sa_no: e.target.value }))}
+                placeholder="SA-XXXXXXXX" style={inp} />
+            </Field>
+            <Field label="狀態">
+              <select value={editOrder.recon_status || ''} onChange={e => setEditOrder(p => ({ ...p, recon_status: e.target.value }))} style={inp}>
+                {['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳'].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="備註">
+              <input value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} style={inp} />
+            </Field>
+            {editMsg && <p style={{ fontSize: 13, color: editMsg.includes('錯誤') ? C.danger : C.sub, margin: '4px 0' }}>{editMsg}</p>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setEditOrder(null)} style={btnGhost}>取消</button>
+              <button onClick={() => saveEditOrder(editOrder)} style={btnPrimary}>儲存</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 官網 LINE Pay 第二層：PayUni 帳戶層服務費 */}
       {isLinePayOfficial && (
