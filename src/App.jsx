@@ -123,18 +123,23 @@ function ConvertPage() {
 
   async function saveToDb() {
     if (!orders.length) return
-    const rows = orders.map((o) => {
-      const items = blocks.block1.filter((b) => b.參照編號 === o.ref_no || b.編號 === '')
-      return {
-        platform: o.platform, ref_no: o.ref_no, order_date: String(o.order_date || ''),
-        contact: o.contact, address: o.address, phone: String(o.phone || ''), email: o.email,
-        pay_method: o.pay_method, note: o.note, store: o.store, pkg_count: o.pkg_count || 1,
-        tracking_no: String(o.tracking_no || ''), total: o.total || 0, shipping_fee: o.shipping_fee || 0, discount: o.discount ?? null,
-        recon_status: '已出貨',
-      }
-    })
+    const rows = orders.map((o) => ({
+      platform: o.platform, ref_no: o.ref_no, order_date: String(o.order_date || ''),
+      contact: o.contact, address: o.address, phone: String(o.phone || ''), email: o.email,
+      pay_method: o.pay_method, note: o.note, store: o.store, pkg_count: o.pkg_count || 1,
+      tracking_no: String(o.tracking_no || ''), total: o.total || 0, shipping_fee: o.shipping_fee || 0, discount: o.discount ?? null,
+    }))
     const { error } = await supabase.from('shipping_orders').upsert(rows, { onConflict: 'platform,ref_no' })
-    setMsg(error ? `存檔失敗：${error.message}` : `已存入 ${rows.length} 筆到資料庫。`)
+    if (error) { setMsg(`存檔失敗：${error.message}`); return }
+    // 只對真正新增的訂單（recon_status 還是 null）才設「已出貨」，不蓋既有對帳狀態
+    const platform = rows[0]?.platform
+    const refNos = rows.map(r => r.ref_no)
+    await supabase.from('shipping_orders')
+      .update({ recon_status: '已出貨' })
+      .eq('platform', platform)
+      .in('ref_no', refNos)
+      .is('recon_status', null)
+    setMsg(`已存入 ${rows.length} 筆到資料庫。`)
   }
 
   const unmatchedCount = blocks?.unmatched?.length || 0
@@ -334,13 +339,16 @@ function ReconPage() {
     setTxMsg('比對中…'); setTxResult(null)
 
     // 每個客戶訂單只取第一個 SA 單號（一筆訂單可能有多列商品）
-    const map = {}
+    const saMap = {}
+    const invMap = {}
     for (const r of txRows) {
       const ref = String(r['客戶訂單'] || '').trim()
       const sa = String(r['單號'] || '').trim()
-      if (ref && sa.startsWith('SA') && !map[ref]) map[ref] = sa
+      const inv = String(r['發票號碼'] || '').trim()
+      if (ref && sa.startsWith('SA') && !saMap[ref]) saMap[ref] = sa
+      if (ref && inv && !invMap[ref]) invMap[ref] = inv
     }
-    const pairs = Object.entries(map)
+    const pairs = Object.entries(saMap)
     if (!pairs.length) { setTxMsg('找不到 SA 開頭的單號，請確認欄位名稱'); return }
 
     const { data: allOrders, error } = await supabase.from('shipping_orders').select('id,ref_no')
@@ -354,12 +362,15 @@ function ReconPage() {
     for (const [ref, sa] of pairs) {
       const id = byRef[ref]
       if (!id) { unmatched.push(ref); continue }
-      const { error: ue } = await supabase.from('shipping_orders').update({ sa_no: sa }).eq('id', id)
+      const upd = { sa_no: sa }
+      if (invMap[ref]) upd.order_invoice_no = invMap[ref]
+      const { error: ue } = await supabase.from('shipping_orders').update(upd).eq('id', id)
       if (!ue) updated++
     }
 
     setTxResult({ total: pairs.length, updated, unmatched })
-    setTxMsg(`${pairs.length} 筆訂單，回填 ${updated} 筆銷貨單號，未對應 ${unmatched.length} 筆`)
+    const invCount = Object.keys(invMap).length
+    setTxMsg(`${pairs.length} 筆訂單，回填 ${updated} 筆銷貨單號${invCount ? `・${invCount} 筆訂單發票號碼` : ''}，未對應 ${unmatched.length} 筆`)
   }
 
   return (
@@ -438,6 +449,11 @@ function GatewayWorkspace({ gateway }) {
   const [bankExpanded, setBankExpanded] = useState({})
   const [bankMsg, setBankMsg] = useState({})   // { idx: 訊息字串 }
   const bankFileRef = useRef(null)
+
+  const [ordInvRows, setOrdInvRows] = useState(null)
+  const [ordInvFileName, setOrdInvFileName] = useState('')
+  const [ordInvMsg, setOrdInvMsg] = useState('')
+  const ordInvFileRef = useRef(null)
 
   const [invMethod, setInvMethod] = useState('auto')
   const [invNo, setInvNo] = useState('')
@@ -527,6 +543,33 @@ function GatewayWorkspace({ gateway }) {
     }
   }
 
+  async function handleOrdInvImport() {
+    if (!ordInvRows) { setOrdInvMsg('請先上傳檔案'); return }
+    setOrdInvMsg('比對中…')
+    const map = {}
+    for (const r of ordInvRows) {
+      const inv = String(r['發票號碼'] || '').trim()
+      if (!inv) continue
+      const key = String(r['客戶訂單'] || r['訂單編號'] || r['參照編號'] || r['平台訂單編號'] || '').trim()
+      if (key && !map[key]) map[key] = inv
+    }
+    const pairs = Object.entries(map)
+    if (!pairs.length) { setOrdInvMsg('找不到「發票號碼」欄位或訂單編號，請確認欄位名稱'); return }
+    const byRef = {}
+    for (const o of orders) byRef[o.ref_no] = o.id
+    let updated = 0
+    const unmatched = []
+    for (const [ref, inv] of pairs) {
+      const id = byRef[ref]
+      if (!id) { unmatched.push(ref); continue }
+      const { error } = await supabase.from('shipping_orders').update({ order_invoice_no: inv }).eq('id', id)
+      if (!error) updated++
+    }
+    const msg = `比對 ${pairs.length} 筆，回填 ${updated} 筆，未對應 ${unmatched.length} 筆`
+    setOrdInvMsg(unmatched.length ? msg + `（${unmatched.slice(0, 3).join('、')}…）` : msg)
+    loadOrders()
+  }
+
   async function handleReconcile() {
     setReconMsg('比對中…')
     try {
@@ -605,6 +648,7 @@ function GatewayWorkspace({ gateway }) {
         sa_no: updates.sa_no || null,
         recon_status: updates.recon_status || null,
         note: updates.note || null,
+        order_invoice_no: updates.order_invoice_no || null,
         fee_invoice_no: updates.fee_invoice_no || null,
       })
       .eq('id', updates.id)
@@ -633,9 +677,9 @@ function GatewayWorkspace({ gateway }) {
 
   function exportOrders() {
     const data = shownOrders.map(o => ({
-      銷貨單號: o.sa_no ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '',
+      銷貨單號: o.sa_no ?? '', 訂單發票號碼: o.order_invoice_no ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
-      差異: calcDiff(o) ?? '', 狀態: o.recon_status, 發票號碼: o.fee_invoice_no ?? '',
+      差異: calcDiff(o) ?? '', 狀態: o.recon_status, 手續費發票號碼: o.fee_invoice_no ?? '',
     }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), gwInfo.label || '對帳')
@@ -645,10 +689,10 @@ function GatewayWorkspace({ gateway }) {
   const months = [...new Set(orders.map(o => (o.order_date || '').slice(0, 7)).filter(Boolean))].sort().reverse()
 
   const SORT_KEY = {
-    '銷貨單號': 'sa_no', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
+    '銷貨單號': 'sa_no', '訂單發票號碼': 'order_invoice_no', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
     '應收': 'total', '手續費': 'fee_total', '應入帳': 'payable',
     '實際入帳': 'actual_in', '入帳日': 'in_date', '差異': '_diff',
-    '狀態': 'recon_status', '發票號碼': 'fee_invoice_no',
+    '狀態': 'recon_status', '手續費發票號碼': 'fee_invoice_no',
   }
 
   function handleSort(col) {
@@ -797,7 +841,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票號碼'].map(c => {
+                {['銷貨單號', '訂單發票號碼', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '手續費發票號碼'].map(c => {
                   const key = SORT_KEY[c]
                   const active = sortCol === key
                   return (
@@ -832,6 +876,7 @@ function GatewayWorkspace({ gateway }) {
                         </button>
                       </td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.order_invoice_no || '—'}</td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
                       <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
@@ -866,11 +911,32 @@ function GatewayWorkspace({ gateway }) {
                 })
               })()}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={13} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={14} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
         </div>
+      </Card>
+
+      {/* 匯入訂單發票號碼 */}
+      <Card>
+        <strong style={{ fontSize: 14 }}>匯入訂單發票號碼</strong>
+        <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
+          上傳含「發票號碼」欄位的天心銷貨單或平台報表，比對「客戶訂單 / 訂單編號」後回填
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input ref={ordInvFileRef} type="file" accept=".xlsx,.xls"
+            onChange={e => readFile(e, setOrdInvRows, setOrdInvFileName)} style={{ display: 'none' }} />
+          <button onClick={() => ordInvFileRef.current.click()} style={btnGhost}>{ordInvFileName || '選擇檔案'}</button>
+          {ordInvRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {ordInvRows.length} 列</span>}
+          <button onClick={handleOrdInvImport} style={btnPrimary}>比對回填</button>
+        </div>
+        {ordInvMsg && (
+          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
+            color: ordInvMsg.includes('找不到') ? C.danger : C.brand }}>
+            {ordInvMsg}
+          </p>
+        )}
       </Card>
 
       {/* LINE Pay / 信用卡 銀行對帳 */}
@@ -1110,7 +1176,11 @@ function GatewayWorkspace({ gateway }) {
                 {['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳'].map(s => <option key={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="發票號碼">
+            <Field label="訂單發票號碼">
+              <input value={editOrder.order_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, order_invoice_no: e.target.value }))}
+                placeholder="AB-12345678" style={inp} />
+            </Field>
+            <Field label="手續費發票號碼">
               <input value={editOrder.fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, fee_invoice_no: e.target.value }))}
                 placeholder="AB-12345678" style={inp} />
             </Field>
@@ -1132,7 +1202,7 @@ function GatewayWorkspace({ gateway }) {
         if (!grp) return null
         const checkColor = grp.invoiceCheck === '相符' ? C.brand : grp.invoiceCheck === '有差異' ? C.danger : C.sub
         const rows = [
-          ['發票號碼', viewInvKey],
+          ['手續費發票號碼', viewInvKey],
           ['發票日期', grp.invDate || '—'],
           ['發票金額', grp.invAmount != null ? `NT$ ${Number(grp.invAmount).toLocaleString()}` : '—'],
           ['手續費合計', `NT$ ${Math.round(grp.feeSum * 100) / 100}`],
@@ -1148,7 +1218,7 @@ function GatewayWorkspace({ gateway }) {
                   {rows.map(([label, val]) => (
                     <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>{label}</td>
-                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: label === '發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
+                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: label === '手續費發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
                     </tr>
                   ))}
                 </tbody>
