@@ -470,6 +470,16 @@ function GatewayWorkspace({ gateway }) {
   const [inv2Amount, setInv2Amount] = useState('')
   const [inv2Msg, setInv2Msg] = useState('')
 
+  const [inv3Method, setInv3Method] = useState('auto')
+  const [inv3No, setInv3No] = useState('')
+  const [inv3Date, setInv3Date] = useState('')
+  const [inv3Amount, setInv3Amount] = useState('')
+  const [inv3From, setInv3From] = useState('')
+  const [inv3To, setInv3To] = useState('')
+  const [inv3Preview, setInv3Preview] = useState(null)
+  const [inv3Msg, setInv3Msg] = useState('')
+  const [checked3Ids, setChecked3Ids] = useState(new Set())
+
   useEffect(() => { loadOrders() }, [])
 
   async function loadOrders() {
@@ -608,6 +618,10 @@ function GatewayWorkspace({ gateway }) {
   const checkedOrders = manualOrders.filter(o => checkedIds.has(o.id))
   const manualFeeSum = Math.round(checkedOrders.reduce((s, o) => s + (o.fee_total || 0), 0) * 100) / 100
 
+  const manual3Orders = orders.filter(o => !o.tx_fee_invoice_no)
+  const checked3Orders = manual3Orders.filter(o => checked3Ids.has(o.id))
+  const manual3TxFeeSum = Math.round(checked3Orders.reduce((s, o) => s + (o.tx_fee || 0), 0) * 100) / 100
+
   function toggleCheck(id) {
     setCheckedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
@@ -640,6 +654,37 @@ function GatewayWorkspace({ gateway }) {
     loadOrders()
   }
 
+  function switchMethod3(v) { setInv3Method(v); setInv3Preview(null); setChecked3Ids(new Set()); setInv3Msg('') }
+  function toggleCheck3(id) {
+    setChecked3Ids(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function toggleAll3() {
+    setChecked3Ids(prev => prev.size === manual3Orders.length ? new Set() : new Set(manual3Orders.map(o => o.id)))
+  }
+  async function runInv3PreviewAuto() {
+    if (!inv3From || !inv3To) { setInv3Msg('請填寫涵蓋期間'); return }
+    setInv3Msg('查詢中…'); setInv3Preview(null)
+    const filtered = orders.filter(o => {
+      const d = (o.in_date || o.order_date || '').slice(0, 10)
+      return d >= inv3From && d <= inv3To
+    })
+    const txFeeSum = Math.round(filtered.reduce((s, o) => s + (o.tx_fee || 0), 0) * 100) / 100
+    setInv3Preview({ orders: filtered, txFeeSum, method: 'auto' })
+    setInv3Msg(filtered.length ? '' : '查無符合期間的訂單')
+  }
+  async function runApplyTxFeeInvoice() {
+    const amount = parseFloat(inv3Amount) || 0
+    const isAutoMode = inv3Preview?.method === 'auto'
+    const orderIds = isAutoMode ? inv3Preview.orders.map(o => o.id) : [...checked3Ids]
+    const txFeeSum = isAutoMode ? inv3Preview.txFeeSum : manual3TxFeeSum
+    if (!orderIds.length) { setInv3Msg('請先選取訂單'); return }
+    const isMatch = amount > 0 && Math.abs(amount - txFeeSum) < 0.01
+    const { error } = await supabase.from('shipping_orders').update({ tx_fee_invoice_no: inv3No || null }).in('id', orderIds)
+    if (error) { setInv3Msg('錯誤：' + error.message); return }
+    setInv3Msg(`已套用至 ${orderIds.length} 筆（${isMatch ? '相符' : '有差異'}）`)
+    setInv3Preview(null); setChecked3Ids(new Set()); loadOrders()
+  }
+
   async function saveEditOrder(updates) {
     setEditMsg('儲存中…')
     const { error } = await supabase
@@ -650,6 +695,7 @@ function GatewayWorkspace({ gateway }) {
         note: updates.note || null,
         order_invoice_no: updates.order_invoice_no || null,
         fee_invoice_no: updates.fee_invoice_no || null,
+        tx_fee_invoice_no: updates.tx_fee_invoice_no || null,
       })
       .eq('id', updates.id)
     if (error) { setEditMsg('錯誤：' + error.message); return }
@@ -680,6 +726,7 @@ function GatewayWorkspace({ gateway }) {
       銷貨單號: o.sa_no ?? '', 訂單發票號碼: o.order_invoice_no ?? '', 對應碼: o.tx_code ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '', 交易處理費: o.tx_fee ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
       差異: calcDiff(o) ?? '', 狀態: o.recon_status, 手續費發票號碼: o.fee_invoice_no ?? '',
+      ...(isLinePayOfficial ? { 交易處理費發票號碼: o.tx_fee_invoice_no ?? '' } : {}),
     }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), gwInfo.label || '對帳')
@@ -692,7 +739,7 @@ function GatewayWorkspace({ gateway }) {
     '銷貨單號': 'sa_no', '訂單發票號碼': 'order_invoice_no', '對應碼': 'tx_code', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
     '應收': 'total', '手續費': 'fee_total', '交易處理費': 'tx_fee', '應入帳': 'payable',
     '實際入帳': 'actual_in', '入帳日': 'in_date', '差異': '_diff',
-    '狀態': 'recon_status', '手續費發票號碼': 'fee_invoice_no',
+    '狀態': 'recon_status', '手續費發票號碼': 'fee_invoice_no', '交易處理費發票號碼': 'tx_fee_invoice_no',
   }
 
   function handleSort(col) {
@@ -841,7 +888,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '手續費發票號碼'].map(c => {
+                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])].map(c => {
                   const key = SORT_KEY[c]
                   const active = sortCol === key
                   return (
@@ -908,12 +955,15 @@ function GatewayWorkspace({ gateway }) {
                           </div>
                         ) : o.fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
                       </td>
+                      {isLinePayOfficial && (
+                        <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.tx_fee_invoice_no || '—'}</td>
+                      )}
                     </tr>
                   )
                 })
               })()}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={16 + (isLinePayOfficial ? 1 : 0)} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
@@ -1186,6 +1236,12 @@ function GatewayWorkspace({ gateway }) {
               <input value={editOrder.fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, fee_invoice_no: e.target.value }))}
                 placeholder="AB-12345678" style={inp} />
             </Field>
+            {isLinePayOfficial && (
+              <Field label="交易處理費發票號碼">
+                <input value={editOrder.tx_fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, tx_fee_invoice_no: e.target.value }))}
+                  placeholder="AB-12345678" style={inp} />
+              </Field>
+            )}
             <Field label="備註">
               <input value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} style={inp} />
             </Field>
@@ -1233,25 +1289,99 @@ function GatewayWorkspace({ gateway }) {
         )
       })()}
 
-      {/* 官網 LINE Pay 第二層：PayUni 帳戶層服務費 */}
-      {isLinePayOfficial && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>PayUni 服務費發票（帳戶層，0.2%）</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 4px' }}>
-            此費用為月結帳戶層，不逐筆計入 fee_total，請登記於備註欄供查閱。
-          </p>
-          <p style={{ fontSize: 12, color: C.sub, margin: '0 0 12px', fontStyle: 'italic' }}>
-            提示：和和研信箱中搜尋「CYICI.60481225.EC 電子發票開立通知」可找到對應發票。
-          </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <Field label="發票號碼"><input value={inv2No} onChange={e => setInv2No(e.target.value)} placeholder="XC19745594" style={inp} /></Field>
-            <Field label="發票日期"><input type="date" value={inv2Date} onChange={e => setInv2Date(e.target.value)} style={inp} /></Field>
-            <Field label="金額"><input type="number" value={inv2Amount} onChange={e => setInv2Amount(e.target.value)} placeholder="0" style={inp} /></Field>
-            <div style={{ paddingBottom: 2 }}><button onClick={applyPayuniAccountFee} style={btnGhost}>記錄備註</button></div>
-          </div>
-          {inv2Msg && <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13, color: inv2Msg.includes('錯誤') ? C.danger : C.brand }}>{inv2Msg}</p>}
-        </Card>
-      )}
+      {/* 官網 LINE Pay：PayUni 交易處理費發票核對 */}
+      {isLinePayOfficial && (() => {
+        const inv3FeeSum = inv3Preview?.txFeeSum ?? (inv3Method === 'manual' ? manual3TxFeeSum : null)
+        const inv3AmountNum = parseFloat(inv3Amount) || 0
+        const inv3Diff = inv3AmountNum > 0 && inv3FeeSum != null ? Math.round((inv3AmountNum - inv3FeeSum) * 100) / 100 : null
+        const inv3IsMatch = inv3Diff != null && Math.abs(inv3Diff) < 0.01
+        const hasInv3Orders = inv3Preview?.orders?.length > 0 || (inv3Method === 'manual' && checked3Ids.size > 0)
+        return (
+          <Card>
+            <strong style={{ fontSize: 14 }}>PayUni交易處理費發票核對</strong>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-end' }}>
+              <Field label="發票號碼">
+                <input value={inv3No} onChange={e => setInv3No(e.target.value)} placeholder="AB-12345678" style={inp} />
+              </Field>
+              <Field label="發票日期">
+                <input type="date" value={inv3Date} onChange={e => setInv3Date(e.target.value)} style={inp} />
+              </Field>
+              <Field label="發票金額">
+                <input type="number" value={inv3Amount} onChange={e => setInv3Amount(e.target.value)} placeholder="0" style={inp} />
+              </Field>
+            </div>
+
+            <div style={{ display: 'flex', margin: '12px 0', gap: 0 }}>
+              {[['auto', '方式 A — 期間篩選'], ['manual', '方式 B — 手動勾選']].map(([v, lbl], i) => (
+                <button key={v} onClick={() => switchMethod3(v)} style={{
+                  padding: '6px 14px', border: `1px solid ${C.line}`, cursor: 'pointer', fontSize: 13,
+                  background: inv3Method === v ? C.brand : '#fff', color: inv3Method === v ? '#fff' : C.sub,
+                  borderRadius: i === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
+                }}>{lbl}</button>
+              ))}
+            </div>
+
+            {inv3Method === 'auto' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <Field label="期間起"><input type="date" value={inv3From} onChange={e => setInv3From(e.target.value)} style={inp} /></Field>
+                <Field label="期間訖"><input type="date" value={inv3To} onChange={e => setInv3To(e.target.value)} style={inp} /></Field>
+                <div style={{ paddingBottom: 2 }}><button onClick={runInv3PreviewAuto} style={btnPrimary}>查詢</button></div>
+              </div>
+            )}
+
+            {inv3Method === 'manual' && (
+              <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto', marginBottom: 8 }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>
+                        <input type="checkbox"
+                          checked={manual3Orders.length > 0 && checked3Ids.size === manual3Orders.length}
+                          onChange={toggleAll3} />
+                      </th>
+                      {['平台訂單編號', '入帳日', '交易處理費'].map(c => <th key={c} style={th}>{c}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {manual3Orders.length === 0 && (
+                      <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: C.sub }}>所有訂單都已歸發票</td></tr>
+                    )}
+                    {manual3Orders.map((o, i) => (
+                      <tr key={i} style={{ background: checked3Ids.has(o.id) ? C.brandBg : '#fff' }}>
+                        <td style={td}><input type="checkbox" checked={checked3Ids.has(o.id)} onChange={() => toggleCheck3(o.id)} /></td>
+                        <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                        <td style={td}>{o.in_date || o.order_date || '—'}</td>
+                        <td style={{ ...td, textAlign: 'right' }}>{(o.tx_fee ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {hasInv3Orders && (
+              <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 10,
+                background: inv3IsMatch ? C.brandBg : inv3Diff != null ? C.warnBg : '#f5f5f5',
+                display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+                {inv3FeeSum != null && <span style={{ fontSize: 13 }}>交易處理費加總：<strong>{inv3FeeSum.toLocaleString()}</strong></span>}
+                {inv3AmountNum > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{inv3AmountNum.toLocaleString()}</strong></span>}
+                {inv3Diff != null && (
+                  <span style={{ fontSize: 13, color: inv3IsMatch ? C.brand : C.danger, fontWeight: 600 }}>
+                    差異：{inv3Diff.toLocaleString()}　{inv3IsMatch ? '✓ 相符' : '✗ 有差異'}
+                  </span>
+                )}
+                <button onClick={runApplyTxFeeInvoice} style={btnPrimary}>套用</button>
+              </div>
+            )}
+            {inv3Msg && (
+              <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
+                color: inv3Msg.includes('錯誤') ? C.danger : inv3Msg.includes('相符') ? C.brand : C.sub }}>
+                {inv3Msg}
+              </p>
+            )}
+          </Card>
+        )
+      })()}
     </div>
   )
 }
