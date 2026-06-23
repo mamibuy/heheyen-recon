@@ -40,6 +40,18 @@ export async function previewInvoice(supabase, { gateway, dateFrom, dateTo }) {
   return { orders, feeSum }
 }
 
+// 撈出指定子分類的訂單（按 platform + pay_method 篩選）
+export async function loadGatewayOrders(supabase, gateway) {
+  const platform = GATEWAY_PLATFORM[gateway]
+  if (!platform) return []
+  const { data } = await supabase
+    .from('shipping_orders')
+    .select('id,ref_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,account_fee_note')
+    .eq('platform', platform)
+    .order('created_at', { ascending: false })
+  return (data || []).filter(o => matchesGateway(o, gateway))
+}
+
 // 把進項發票資訊寫入這批訂單，並標記 invoice_check
 export async function applyInvoice(supabase, { orderIds, invoiceNo, invoiceDate, invoiceAmount, isMatch }) {
   const { error } = await supabase
