@@ -618,8 +618,7 @@ function GatewayWorkspace({ gateway }) {
   const invoiceGroups = {}
   shownOrders.forEach(o => {
     if (!o.fee_invoice_no) return
-    if (!invoiceGroups[o.fee_invoice_no]) invoiceGroups[o.fee_invoice_no] = { feeSum: 0, count: 0 }
-    invoiceGroups[o.fee_invoice_no].feeSum += o.fee_total || 0
+    if (!invoiceGroups[o.fee_invoice_no]) invoiceGroups[o.fee_invoice_no] = { invAmount: o.fee_invoice_amount ?? null, count: 0 }
     invoiceGroups[o.fee_invoice_no].count++
   })
   const INV_BG = ['#e6f4f0', '#e8edf8']   // 交替淡綠 / 淡藍
@@ -785,7 +784,7 @@ function GatewayWorkspace({ gateway }) {
                           <div>
                             <div>{o.fee_invoice_no}</div>
                             <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
-                              {grp.count} 筆・手續費 {Math.round(grp.feeSum * 100) / 100}
+                              {grp.count} 筆・發票金額 {grp.invAmount != null ? grp.invAmount.toLocaleString() : '—'}
                             </div>
                           </div>
                         ) : o.fee_invoice_no ? '' : '—'}
