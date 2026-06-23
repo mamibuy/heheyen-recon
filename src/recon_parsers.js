@@ -165,19 +165,25 @@ export function detectGateway(headers) {
 // D-1 提供 交易號碼 → 手續費合計
 // D-2 提供 商店訂單編號（去槓）→ ref_no、支付方式對應碼 → D-1 交易號碼（勾稽取費用）
 export function parseOfficialLinePayReconDual(d1rows, d2rows) {
-  // 建 D-1 查找表：交易號碼 → 手續費
+  // 建 D-1 查找表：交易號碼 → 手續費 + 排定撥款
   const feeByTx = {}
+  const payableByTx = {}
   for (const r of d1rows) {
     const tx = String(pick(r, ['交易號碼', '訂單號碼'])).trim()
-    if (tx) feeByTx[tx] = num(pick(r, ['手續費合計', '手續費']))
+    if (tx) {
+      feeByTx[tx] = num(pick(r, ['手續費合計', '手續費']))
+      payableByTx[tx] = num(pick(r, ['排定的各項目撥款']))
+    }
   }
   // 從 D-2 組裝每筆訂單
   return d2rows.map(r => {
     const key = stripDash(String(pick(r, ['商店訂單編號'])).trim())
     const txCode = String(pick(r, ['支付方式對應碼'])).trim()
     const total = num(pick(r, ['付款金額', '交易金額']))
-    const fee = feeByTx[txCode] ?? 0
+    const fee = feeByTx[txCode] ?? 0                        // D-1 手續費 → fee_total
+    const payable = payableByTx[txCode] ?? (total - fee)    // D-1 排定的各項目撥款 → payable
+    const txFee = num(pick(r, ['交易處理費']))               // D-2 交易處理費 → tx_fee
     const in_date = excelDate(pick(r, ['入帳日期', '撥款日期'])) || null
-    return { key, key_type: 'ref_no_nodash', fee, payable: total - fee, actual_in: null, in_date, payout_date: in_date, tx_code: txCode || null, tx_fee: fee }
+    return { key, key_type: 'ref_no_nodash', fee, payable, actual_in: null, in_date, payout_date: in_date, tx_code: txCode || null, tx_fee: txFee }
   }).filter(r => r.key)
 }
