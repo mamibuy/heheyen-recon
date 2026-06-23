@@ -435,6 +435,7 @@ function GatewayWorkspace({ gateway }) {
   const [bankFileName, setBankFileName] = useState('')
   const [bankSel, setBankSel] = useState({})       // { String(idx): Set<orderId> }
   const [bankExpanded, setBankExpanded] = useState({})
+  const [bankMsg, setBankMsg] = useState({})   // { idx: 訊息字串 }
   const bankFileRef = useRef(null)
 
   const [invMethod, setInvMethod] = useState('auto')
@@ -499,6 +500,25 @@ function GatewayWorkspace({ gateway }) {
       if (s.has(ordId)) s.delete(ordId); else s.add(ordId)
       return { ...prev, [idx]: s }
     })
+  }
+
+  async function confirmBankEntry(idx, br, dateOrders) {
+    if (dateOrders.length === 0) return
+    setBankMsg(p => ({ ...p, [idx]: '寫入中…' }))
+    let hasErr = false
+    for (const o of dateOrders) {
+      const { error } = await supabase
+        .from('shipping_orders')
+        .update({ in_date: br.date, actual_in: o.payable, recon_status: '已入帳' })
+        .eq('id', o.id)
+      if (error) { hasErr = true; break }
+    }
+    if (hasErr) {
+      setBankMsg(p => ({ ...p, [idx]: '❌ 寫入失敗' }))
+    } else {
+      setBankMsg(p => ({ ...p, [idx]: `✓ 已回填 ${dateOrders.length} 筆` }))
+      await loadOrders()
+    }
   }
 
   async function handleReconcile() {
@@ -918,6 +938,17 @@ function GatewayWorkspace({ gateway }) {
                               onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
                               style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
                             >{expanded ? '收起 ▲' : `查看訂單 ▼ (${dateOrders.length})`}</button>
+                          )}
+                          {dateOrders.length > 0 && (
+                            <button
+                              onClick={() => confirmBankEntry(idx, br, dateOrders)}
+                              style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}
+                            >確認入帳</button>
+                          )}
+                          {bankMsg[idx] && (
+                            <span style={{ fontSize: 12, color: bankMsg[idx].includes('❌') ? C.danger : C.brand }}>
+                              {bankMsg[idx]}
+                            </span>
                           )}
                         </div>
 
