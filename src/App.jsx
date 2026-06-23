@@ -484,7 +484,7 @@ function GatewayWorkspace({ gateway }) {
       const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
       const parsed = all.slice(1)
         .filter(r => { const a = String(r[9] || ''); return a.includes('387/0000000060558379') || a.includes('808/1229940024585') })
-        .map(r => ({ date: excelDate(r[1]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || ''), account: String(r[9] || '') }))
+        .map(r => ({ date: excelDate(r[1]), actualDate: excelDate(r[2]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || ''), account: String(r[9] || '') }))
         .filter(r => r.deposit > 0)
         .sort((a, b) => a.date.localeCompare(b.date))
       setBankRows(parsed)
@@ -959,6 +959,8 @@ function GatewayWorkspace({ gateway }) {
                                 <tr style={{ color: C.sub }}>
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
+                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>
+                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>
                                   <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
                                 </tr>
                               </thead>
@@ -967,11 +969,13 @@ function GatewayWorkspace({ gateway }) {
                                   <tr key={o.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
                                     <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
                                     <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
+                                    <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>
+                                    <td style={{ padding: '4px 6px', color: br.actualDate !== o.in_date ? C.warn : '#222' }}>{br.actualDate || '—'}</td>
                                     <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
                                   </tr>
                                 ))}
                                 <tr style={{ borderTop: '1px solid #ddd', fontWeight: 600 }}>
-                                  <td colSpan={2} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>訂單合計</td>
+                                  <td colSpan={4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>訂單合計</td>
                                   <td style={{ padding: '6px 6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
                                 </tr>
                               </tbody>
