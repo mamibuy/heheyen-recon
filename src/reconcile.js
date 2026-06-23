@@ -46,7 +46,7 @@ export async function loadGatewayOrders(supabase, gateway) {
   if (!platform) return []
   const { data } = await supabase
     .from('shipping_orders')
-    .select('id,ref_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,account_fee_note')
+    .select('id,ref_no,sa_no,platform,total,fee_total,payable,actual_in,in_date,order_date,pay_method,recon_status,invoice_check,fee_invoice_no,account_fee_note')
     .eq('platform', platform)
     .order('created_at', { ascending: false })
   return (data || []).filter(o => matchesGateway(o, gateway))
@@ -82,6 +82,7 @@ export async function reconcile(supabase, gateway, parsedRows) {
   }
 
   const matched = [], unmatched = [], updated = []
+  let feeTotal = 0, payableTotal = 0
 
   for (const row of parsedRows) {
     const order = row.key_type === 'ref_no_nodash'
@@ -105,8 +106,18 @@ export async function reconcile(supabase, gateway, parsedRows) {
       .update({ fee_total, payable, actual_in, in_date, recon_status })
       .eq('id', order.id)
 
-    if (!updateError) updated.push(row.key)
+    if (!updateError) {
+      updated.push(row.key)
+      feeTotal += fee_total
+      payableTotal += payable
+    }
   }
 
-  return { matched: matched.length, unmatched, updated: updated.length }
+  return {
+    matched: matched.length,
+    unmatched,
+    updated: updated.length,
+    feeTotal: Math.round(feeTotal * 100) / 100,
+    payableTotal: Math.round(payableTotal * 100) / 100,
+  }
 }

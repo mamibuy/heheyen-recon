@@ -38,7 +38,7 @@ function parseLinePayRecon(rows) {
       fee,
       payable: total - fee,
       actual_in: null,
-      in_date: null,
+      in_date: payout_date,
       payout_date,
     }
   }).filter(r => r.key)

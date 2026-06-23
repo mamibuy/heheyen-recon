@@ -129,7 +129,7 @@ function ConvertPage() {
         platform: o.platform, ref_no: o.ref_no, order_date: String(o.order_date || ''),
         contact: o.contact, address: o.address, phone: String(o.phone || ''), email: o.email,
         pay_method: o.pay_method, note: o.note, store: o.store, pkg_count: o.pkg_count || 1,
-        tracking_no: String(o.tracking_no || ''), total: o.total || 0, shipping_fee: o.shipping_fee || 0,
+        tracking_no: String(o.tracking_no || ''), total: o.total || 0, shipping_fee: o.shipping_fee || 0, discount: o.discount ?? null,
         recon_status: '已出貨',
       }
     })
@@ -344,6 +344,8 @@ function GatewayWorkspace({ gateway }) {
   const [orders, setOrders] = useState([])
   const [filterStatus, setFilterStatus] = useState('')
   const [onlyDiff, setOnlyDiff] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [deleteMsg, setDeleteMsg] = useState('')
 
   const [invMethod, setInvMethod] = useState('auto')
   const [invNo, setInvNo] = useState('')
@@ -450,9 +452,26 @@ function GatewayWorkspace({ gateway }) {
     loadOrders()
   }
 
+  function toggleSelect(id) {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function toggleSelectAll() {
+    setSelectedIds(prev => prev.size === shownOrders.length ? new Set() : new Set(shownOrders.map(o => o.id)))
+  }
+  async function deleteSelected() {
+    if (!selectedIds.size) return
+    if (!window.confirm(`確定要刪除選取的 ${selectedIds.size} 筆訂單？此操作無法復原。`)) return
+    setDeleteMsg('刪除中…')
+    const { error } = await supabase.from('shipping_orders').delete().in('id', [...selectedIds])
+    if (error) { setDeleteMsg('錯誤：' + error.message); return }
+    setDeleteMsg(`已刪除 ${selectedIds.size} 筆`)
+    setSelectedIds(new Set())
+    loadOrders()
+  }
+
   function exportOrders() {
     const data = shownOrders.map(o => ({
-      銷貨單號: o.ref_no, 應收: o.total, 手續費: o.fee_total ?? '',
+      銷貨單號: o.sa_no ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
       差異: calcDiff(o) ?? '', 狀態: o.recon_status, 發票核對: o.invoice_check ?? '',
     }))
@@ -509,6 +528,19 @@ function GatewayWorkspace({ gateway }) {
             {reconMsg}
           </p>
         )}
+        {reconResult && reconResult.updated > 0 && (
+          <div style={{ marginTop: 10, padding: '10px 14px', background: C.brandBg, borderRadius: 8,
+            display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13 }}>
+              手續費合計：<strong>{reconResult.feeTotal.toLocaleString()}</strong>
+              <span style={{ fontSize: 11, color: C.sub, marginLeft: 4 }}>（供發票核對）</span>
+            </span>
+            <span style={{ fontSize: 13 }}>
+              預計撥款金額：<strong>{reconResult.payableTotal.toLocaleString()}</strong>
+              <span style={{ fontSize: 11, color: C.sub, marginLeft: 4 }}>（供玉山對帳單核對）</span>
+            </span>
+          </div>
+        )}
         {reconResult?.unmatched?.length > 0 && (
           <p style={{ marginTop: 6, marginBottom: 0, fontSize: 12, color: C.warn }}>
             未對應：{reconResult.unmatched.slice(0, 5).join('、')}
@@ -531,7 +563,13 @@ function GatewayWorkspace({ gateway }) {
             </label>
             <span style={{ fontSize: 13, color: C.sub }}>{shownOrders.length} 筆</span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {selectedIds.size > 0 && (
+              <button onClick={deleteSelected} style={{ ...btnGhost, color: C.danger, borderColor: C.danger }}>
+                刪除 {selectedIds.size} 筆
+              </button>
+            )}
+            {deleteMsg && <span style={{ fontSize: 12, color: deleteMsg.includes('錯誤') ? C.danger : C.sub }}>{deleteMsg}</span>}
             <button onClick={loadOrders} style={btnGhost}>重新整理</button>
             <button onClick={exportOrders} style={btnPrimary}>匯出</button>
           </div>
@@ -539,16 +577,27 @@ function GatewayWorkspace({ gateway }) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
             <thead>
-              <tr>{['銷貨單號', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票核對'].map(c =>
-                <th key={c} style={th}>{c}</th>)}
+              <tr>
+                <th style={th}>
+                  <input type="checkbox"
+                    checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
+                    onChange={toggleSelectAll} />
+                </th>
+                {['銷貨單號', '平台訂單編號', '訂單日期', '應收', '手續費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '發票核對'].map(c =>
+                  <th key={c} style={th}>{c}</th>)}
               </tr>
             </thead>
             <tbody>
               {shownOrders.map((o, i) => {
                 const d = calcDiff(o); const hasDiff = d != null && d !== 0
                 return (
-                  <tr key={i}>
+                  <tr key={i} style={{ background: selectedIds.has(o.id) ? C.brandBg : undefined }}>
+                    <td style={td}>
+                      <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)} />
+                    </td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
+                    <td style={td}>{o.order_date || '—'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
@@ -576,7 +625,7 @@ function GatewayWorkspace({ gateway }) {
                 )
               })}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={12} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>

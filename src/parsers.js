@@ -64,21 +64,23 @@ function parseShopee(rows) {
 // ---------- LINE商城 ----------
 function parseLineMall(rows) {
   return rows.map((r) => {
+    const dateRaw = pick(r, ['訂單下單日期', '訂單成立日期', '訂單日期'])
     return {
       platform: 'LINE商城',
       ref_no: pick(r, ['訂單編號']),
-      order_date: excelDate(pick(r, ['訂單下單日期', '訂單成立日期', '訂單日期'])),
+      order_date: typeof dateRaw === 'string' && dateRaw.length >= 10 ? dateRaw.slice(0, 10) : excelDate(dateRaw),
       contact: pick(r, ['收件人姓名', '收件者姓名']),
       address: pick(r, ['配送地址', '收件地址']),
       phone: pick(r, ['收件人聯絡電話', '收件者電話']),
       email: pick(r, ['收件人電子郵件', 'Email', '電子郵件']),
-      pay_method: pick(r, ['付款方式']),   // 帶入原始值（如 LINE_PAY）
+      pay_method: pick(r, ['付款方式']),
       note: 'LINE商城',
       store: 'LINE商城',
       pkg_count: 1,
       tracking_no: pick(r, ['物流單編號', '配送編號']),
-      total: num(pick(r, ['總付款金額', '訂單總金額'])),
-      shipping_fee: num(pick(r, ['運費'])),
+      total: num(pick(r, ['總付款金額'])),
+      shipping_fee: num(pick(r, ['合計運費', '運費'])),
+      discount: num(pick(r, ['訂單優惠券折抵金額'])),
       product_text: pick(r, ['商品名稱']),
       qty_platform: num(pick(r, ['數量'])) || 1,
     };
