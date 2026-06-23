@@ -614,6 +614,19 @@ function GatewayWorkspace({ gateway }) {
       return sortDir === 'asc' ? cmp : -cmp
     })
 
+  // 發票分組：計算每張發票在目前清單中的合計手續費與筆數
+  const invoiceGroups = {}
+  shownOrders.forEach(o => {
+    if (!o.fee_invoice_no) return
+    if (!invoiceGroups[o.fee_invoice_no]) invoiceGroups[o.fee_invoice_no] = { feeSum: 0, count: 0 }
+    invoiceGroups[o.fee_invoice_no].feeSum += o.fee_total || 0
+    invoiceGroups[o.fee_invoice_no].count++
+  })
+  const INV_BG = ['#e6f4f0', '#e8edf8']   // 交替淡綠 / 淡藍
+  const invColorIdx = {}
+  let _ci = 0
+  Object.keys(invoiceGroups).forEach(k => { invColorIdx[k] = _ci++ % 2 })
+
   const invFeeSum = invPreview?.feeSum ?? (invMethod === 'manual' ? manualFeeSum : null)
   const invAmountNum = parseFloat(invAmount) || 0
   const invDiff = invAmountNum > 0 && invFeeSum != null ? Math.round((invAmountNum - invFeeSum) * 100) / 100 : null
@@ -729,50 +742,67 @@ function GatewayWorkspace({ gateway }) {
               </tr>
             </thead>
             <tbody>
-              {shownOrders.map((o, i) => {
-                const d = calcDiff(o); const hasDiff = d != null && d !== 0
-                return (
-                  <tr key={i} style={{ background: selectedIds.has(o.id) ? C.brandBg : undefined }}>
-                    <td style={td}>
-                      <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)} />
-                    </td>
-                    <td style={td}>
-                      <button onClick={() => { setEditOrder({ ...o }); setEditMsg('') }}
-                        style={{ fontSize: 12, padding: '2px 8px', border: `1px solid ${C.line}`,
-                          borderRadius: 6, background: '#fff', cursor: 'pointer', color: C.sub }}>
-                        編輯
-                      </button>
-                    </td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
-                    <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
-                    <td style={td}>{o.in_date || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', color: hasDiff ? C.danger : C.ink, fontWeight: hasDiff ? 600 : 400 }}>
-                      {d != null ? d.toLocaleString() : '—'}
-                    </td>
-                    <td style={td}>
-                      <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
-                        background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
-                        {o.recon_status || '—'}
-                      </span>
-                    </td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.fee_invoice_no || '—'}</td>
-                    <td style={td}>
-                      {o.invoice_check && (
+              {(() => {
+                const seenInv = new Set()
+                return shownOrders.map((o, i) => {
+                  const d = calcDiff(o); const hasDiff = d != null && d !== 0
+                  const invBg = o.fee_invoice_no ? INV_BG[invColorIdx[o.fee_invoice_no]] : undefined
+                  const rowBg = selectedIds.has(o.id) ? C.brandBg : invBg
+                  const isFirstInv = o.fee_invoice_no && !seenInv.has(o.fee_invoice_no)
+                  if (o.fee_invoice_no) seenInv.add(o.fee_invoice_no)
+                  const grp = o.fee_invoice_no ? invoiceGroups[o.fee_invoice_no] : null
+                  return (
+                    <tr key={i} style={{ background: rowBg }}>
+                      <td style={td}>
+                        <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)} />
+                      </td>
+                      <td style={td}>
+                        <button onClick={() => { setEditOrder({ ...o }); setEditMsg('') }}
+                          style={{ fontSize: 12, padding: '2px 8px', border: `1px solid ${C.line}`,
+                            borderRadius: 6, background: '#fff', cursor: 'pointer', color: C.sub }}>
+                          編輯
+                        </button>
+                      </td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
+                      <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
+                      <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
+                      <td style={td}>{o.in_date || '—'}</td>
+                      <td style={{ ...td, textAlign: 'right', color: hasDiff ? C.danger : C.ink, fontWeight: hasDiff ? 600 : 400 }}>
+                        {d != null ? d.toLocaleString() : '—'}
+                      </td>
+                      <td style={td}>
                         <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
-                          background: o.invoice_check === '相符' ? C.brandBg : C.warnBg,
-                          color: o.invoice_check === '相符' ? C.brand : C.warn }}>
-                          {o.invoice_check}
+                          background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
+                          {o.recon_status || '—'}
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
+                      </td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>
+                        {isFirstInv && grp ? (
+                          <div>
+                            <div>{o.fee_invoice_no}</div>
+                            <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
+                              {grp.count} 筆・手續費 {Math.round(grp.feeSum * 100) / 100}
+                            </div>
+                          </div>
+                        ) : o.fee_invoice_no ? '' : '—'}
+                      </td>
+                      <td style={td}>
+                        {o.invoice_check && (
+                          <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
+                            background: o.invoice_check === '相符' ? C.brandBg : C.warnBg,
+                            color: o.invoice_check === '相符' ? C.brand : C.warn }}>
+                            {o.invoice_check}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              })()}
               {shownOrders.length === 0 && (
                 <tr><td colSpan={14} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
