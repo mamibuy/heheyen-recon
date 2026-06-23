@@ -597,7 +597,7 @@ function GatewayWorkspace({ gateway }) {
                     </td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
-                    <td style={td}>{o.order_date || '—'}</td>
+                    <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
