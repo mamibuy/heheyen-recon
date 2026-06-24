@@ -453,6 +453,9 @@ function GatewayWorkspace({ gateway }) {
   const txInvPdfRef = useRef(null)
   const [invDeleteConfirm, setInvDeleteConfirm] = useState(false)
   const [txInvDeleteConfirm, setTxInvDeleteConfirm] = useState(false)
+  const [invPopupDate, setInvPopupDate] = useState('')
+  const [invPopupAmount, setInvPopupAmount] = useState('')
+  const [txInvPopupAmount, setTxInvPopupAmount] = useState('')
 
   const [bankRows, setBankRows] = useState([])
   const [bankFileName, setBankFileName] = useState('')
@@ -512,6 +515,8 @@ function GatewayWorkspace({ gateway }) {
       const o = orders.find(x => x.fee_invoice_no === viewInvKey)
       setInvNote(o?.fee_invoice_note ?? localStorage.getItem(`inv_note_${viewInvKey}`) ?? '')
       setInvPdfUrl(o?.fee_invoice_pdf_url ?? null)
+      setInvPopupDate(o?.fee_invoice_date ?? '')
+      setInvPopupAmount(o?.fee_invoice_amount != null ? String(o.fee_invoice_amount) : '')
     }
   }, [viewInvKey])
   useEffect(() => {
@@ -520,6 +525,7 @@ function GatewayWorkspace({ gateway }) {
       const o = orders.find(x => x.tx_fee_invoice_no === viewTxInvKey)
       setTxInvNote(o?.tx_fee_invoice_note ?? localStorage.getItem(`txinv_note_${viewTxInvKey}`) ?? '')
       setTxInvPdfUrl(o?.tx_fee_invoice_pdf_url ?? null)
+      setTxInvPopupAmount(localStorage.getItem(`txinv_amount_${viewTxInvKey}`) ?? '')
     }
   }, [viewTxInvKey])
   useEffect(() => {
@@ -820,6 +826,23 @@ function GatewayWorkspace({ gateway }) {
   async function saveTxInvNote(note) {
     localStorage.setItem(`txinv_note_${viewTxInvKey}`, note)
     await supabase.from('shipping_orders').update({ tx_fee_invoice_note: note || null }).eq('tx_fee_invoice_no', viewTxInvKey)
+  }
+
+  async function saveInvPopupDate(date) {
+    await supabase.from('shipping_orders').update({ fee_invoice_date: date || null }).eq('fee_invoice_no', viewInvKey)
+    loadOrders()
+  }
+
+  async function saveInvPopupAmount(amount) {
+    const amt = amount !== '' ? parseFloat(amount) : null
+    const feeSum = orders.filter(o => o.fee_invoice_no === viewInvKey).reduce((s, o) => s + (o.fee_total || 0), 0)
+    const invoiceCheck = amt != null ? (Math.abs(amt - feeSum) < 0.01 ? '相符' : '有差異') : null
+    await supabase.from('shipping_orders').update({ fee_invoice_amount: amt, invoice_check: invoiceCheck }).eq('fee_invoice_no', viewInvKey)
+    loadOrders()
+  }
+
+  function saveTxInvPopupAmount(amount) {
+    localStorage.setItem(`txinv_amount_${viewTxInvKey}`, amount)
   }
 
   function storagePath(url) {
@@ -1573,24 +1596,41 @@ function GatewayWorkspace({ gateway }) {
         const grp = invoiceGroups[viewInvKey]
         if (!grp) return null
         const checkColor = grp.invoiceCheck === '相符' ? C.brand : grp.invoiceCheck === '有差異' ? C.danger : C.sub
-        const rows = [
-          ['手續費發票號碼', viewInvKey],
-          ['發票日期', grp.invDate || '—'],
-          ['發票金額', grp.invAmount != null ? `NT$ ${Number(grp.invAmount).toLocaleString()}` : '—'],
-          ['手續費合計', `NT$ ${Math.round(grp.feeSum * 100) / 100}`],
-          ['包含訂單', `${grp.count} 筆`],
-          ['核對結果', grp.invoiceCheck || '—'],
+        const staticRows = [
+          ['手續費發票號碼', viewInvKey, 'monospace'],
+          ['手續費合計', `NT$ ${Math.round(grp.feeSum * 100) / 100}`, 'inherit'],
+          ['包含訂單', `${grp.count} 筆`, 'inherit'],
+          ['核對結果', grp.invoiceCheck || '—', 'inherit'],
         ]
+        const popupInp = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
         return (
           <div style={overlay} onClick={() => setViewInvKey(null)}>
             <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, fontSize: 15 }}>發票資訊</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  {rows.map(([label, val]) => (
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>手續費發票號碼</td>
+                    <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewInvKey}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>發票日期</td>
+                    <td style={{ padding: '6px 0' }}>
+                      <input type="date" value={invPopupDate} onChange={e => setInvPopupDate(e.target.value)}
+                        onBlur={e => saveInvPopupDate(e.target.value)} style={popupInp} />
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>發票金額</td>
+                    <td style={{ padding: '6px 0' }}>
+                      <input type="number" value={invPopupAmount} onChange={e => setInvPopupAmount(e.target.value)}
+                        onBlur={e => saveInvPopupAmount(e.target.value)} placeholder="0" style={popupInp} />
+                    </td>
+                  </tr>
+                  {staticRows.map(([label, val, ff]) => (
                     <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>{label}</td>
-                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: label === '手續費發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
+                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: ff }}>{val}</td>
                     </tr>
                   ))}
                   <tr>
@@ -1649,22 +1689,32 @@ function GatewayWorkspace({ gateway }) {
       {viewTxInvKey && (() => {
         const txGrpDetail = txInvoiceGroups[viewTxInvKey]
         if (!txGrpDetail) return null
-        const rows = [
-          ['交易處理費發票號碼', viewTxInvKey],
-          ['發票金額', txGrpDetail.invAmount != null ? `NT$ ${Number(txGrpDetail.invAmount).toLocaleString()}` : '—'],
+        const txStaticRows = [
           ['交易處理費合計', `NT$ ${Math.round(txGrpDetail.txFeeSum * 100) / 100}`],
           ['包含訂單', `${txGrpDetail.count} 筆`],
         ]
+        const popupInp2 = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
         return (
           <div style={overlay} onClick={() => setViewTxInvKey(null)}>
             <div style={{ ...modal, width: 360 }} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, fontSize: 15 }}>交易處理費發票資訊</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  {rows.map(([label, val]) => (
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub, width: 130 }}>交易處理費發票號碼</td>
+                    <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewTxInvKey}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>發票金額</td>
+                    <td style={{ padding: '6px 0' }}>
+                      <input type="number" value={txInvPopupAmount} onChange={e => setTxInvPopupAmount(e.target.value)}
+                        onBlur={e => saveTxInvPopupAmount(e.target.value)} placeholder="0" style={popupInp2} />
+                    </td>
+                  </tr>
+                  {txStaticRows.map(([label, val]) => (
                     <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <td style={{ padding: '8px 0', color: C.sub, width: 130 }}>{label}</td>
-                      <td style={{ padding: '8px 0', fontFamily: label === '交易處理費發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
+                      <td style={{ padding: '8px 0' }}>{val}</td>
                     </tr>
                   ))}
                   <tr>
