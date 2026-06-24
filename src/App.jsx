@@ -576,16 +576,26 @@ function GatewayWorkspace({ gateway }) {
       const wb = XLSX.read(ev.target.result, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
       const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-      const parsed = all.slice(1)
+      // 動態找欄位索引，相容有無「序號」欄的不同格式
+      const headerIdx = all.findIndex(r => r.includes('帳務日期'))
+      const hdr = all[headerIdx] || []
+      const ci = {
+        date:    hdr.indexOf('帳務日期'),
+        actual:  hdr.indexOf('實際交易日期'),
+        summary: hdr.indexOf('摘要'),
+        deposit: hdr.indexOf('存'),
+        account: hdr.indexOf('轉出入銀行代號/帳號'),
+      }
+      const parsed = all.slice(headerIdx + 1)
         .filter(r => {
-          if (isPayuniCC) return String(r[4] || '').includes('ＰＡＹＵ')
-          const a = String(r[9] || '')
+          if (isPayuniCC) return String(r[ci.summary] || '').includes('ＰＡＹＵ')
+          const a = String(r[ci.account] || '')
           if (isLineMallLinePay) return a.includes('387/0000000060558379')
           if (isLanxin) return a.includes('008/0000158100035101')
           if (isLinePayOfficial) return a.includes('808/1229940024585')
           return false
         })
-        .map(r => ({ date: excelDate(r[1]), actualDate: excelDate(r[2]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || ''), account: String(r[9] || '') }))
+        .map(r => ({ date: excelDate(r[ci.date]), actualDate: excelDate(r[ci.actual]), deposit: parseFloat(r[ci.deposit]) || 0, summary: String(r[ci.summary] || ''), account: String(r[ci.account] || '') }))
         .filter(r => r.deposit > 0)
         .sort((a, b) => a.date.localeCompare(b.date))
       setBankRows(parsed)
