@@ -443,6 +443,8 @@ function GatewayWorkspace({ gateway }) {
   const [editMsg, setEditMsg] = useState('')
   const [viewInvKey, setViewInvKey] = useState(null)
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
+  const [invNote, setInvNote] = useState('')
+  const [txInvNote, setTxInvNote] = useState('')
 
   const [bankRows, setBankRows] = useState([])
   const [bankFileName, setBankFileName] = useState('')
@@ -496,6 +498,12 @@ function GatewayWorkspace({ gateway }) {
   const sopSavedRange = useRef(null)
 
   useEffect(() => { loadOrders() }, [])
+  useEffect(() => {
+    if (viewInvKey) setInvNote(localStorage.getItem(`inv_note_${viewInvKey}`) || '')
+  }, [viewInvKey])
+  useEffect(() => {
+    if (viewTxInvKey) setTxInvNote(localStorage.getItem(`txinv_note_${viewTxInvKey}`) || '')
+  }, [viewTxInvKey])
   useEffect(() => {
     setSopHtml(localStorage.getItem(`sop_${gateway}`) || '')
     setSopEditing(false)
@@ -1492,6 +1500,18 @@ function GatewayWorkspace({ gateway }) {
                       <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: label === '手續費發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
                     </tr>
                   ))}
+                  <tr>
+                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>備注</td>
+                    <td style={{ padding: '8px 0' }}>
+                      <textarea
+                        value={invNote}
+                        onChange={e => { setInvNote(e.target.value); localStorage.setItem(`inv_note_${viewInvKey}`, e.target.value) }}
+                        placeholder="輸入備注…"
+                        rows={3}
+                        style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      />
+                    </td>
+                  </tr>
                 </tbody>
               </table>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
@@ -1522,6 +1542,18 @@ function GatewayWorkspace({ gateway }) {
                       <td style={{ padding: '8px 0', fontFamily: label === '交易處理費發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
                     </tr>
                   ))}
+                  <tr>
+                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>備注</td>
+                    <td style={{ padding: '8px 0' }}>
+                      <textarea
+                        value={txInvNote}
+                        onChange={e => { setTxInvNote(e.target.value); localStorage.setItem(`txinv_note_${viewTxInvKey}`, e.target.value) }}
+                        placeholder="輸入備注…"
+                        rows={3}
+                        style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      />
+                    </td>
+                  </tr>
                 </tbody>
               </table>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
