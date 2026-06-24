@@ -751,11 +751,11 @@ function GatewayWorkspace({ gateway }) {
     } catch(e) { setInvMsg('錯誤：' + e.message) }
   }
 
-  const manualOrders = orders.filter(o => !o.fee_invoice_no)
+  const manualOrders = orders.filter(o => !o.fee_invoice_no).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
   const checkedOrders = manualOrders.filter(o => checkedIds.has(o.id))
   const manualFeeSum = Math.round(checkedOrders.reduce((s, o) => s + (o.fee_total || 0), 0) * 100) / 100
 
-  const manual3Orders = orders.filter(o => !o.tx_fee_invoice_no)
+  const manual3Orders = orders.filter(o => !o.tx_fee_invoice_no).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
   const checked3Orders = manual3Orders.filter(o => checked3Ids.has(o.id))
   const manual3TxFeeSum = Math.round(checked3Orders.reduce((s, o) => s + (o.tx_fee || 0), 0) * 100) / 100
 
