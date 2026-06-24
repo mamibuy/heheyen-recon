@@ -445,6 +445,12 @@ function GatewayWorkspace({ gateway }) {
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
   const [invNote, setInvNote] = useState('')
   const [txInvNote, setTxInvNote] = useState('')
+  const [invPdfUrl, setInvPdfUrl] = useState(null)
+  const [txInvPdfUrl, setTxInvPdfUrl] = useState(null)
+  const [invUploading, setInvUploading] = useState(false)
+  const [txInvUploading, setTxInvUploading] = useState(false)
+  const invPdfRef = useRef(null)
+  const txInvPdfRef = useRef(null)
   const [invDeleteConfirm, setInvDeleteConfirm] = useState(false)
   const [txInvDeleteConfirm, setTxInvDeleteConfirm] = useState(false)
 
@@ -502,11 +508,19 @@ function GatewayWorkspace({ gateway }) {
   useEffect(() => { loadOrders() }, [])
   useEffect(() => {
     setInvDeleteConfirm(false)
-    if (viewInvKey) setInvNote(localStorage.getItem(`inv_note_${viewInvKey}`) || '')
+    if (viewInvKey) {
+      const o = orders.find(x => x.fee_invoice_no === viewInvKey)
+      setInvNote(o?.fee_invoice_note ?? localStorage.getItem(`inv_note_${viewInvKey}`) ?? '')
+      setInvPdfUrl(o?.fee_invoice_pdf_url ?? null)
+    }
   }, [viewInvKey])
   useEffect(() => {
     setTxInvDeleteConfirm(false)
-    if (viewTxInvKey) setTxInvNote(localStorage.getItem(`txinv_note_${viewTxInvKey}`) || '')
+    if (viewTxInvKey) {
+      const o = orders.find(x => x.tx_fee_invoice_no === viewTxInvKey)
+      setTxInvNote(o?.tx_fee_invoice_note ?? localStorage.getItem(`txinv_note_${viewTxInvKey}`) ?? '')
+      setTxInvPdfUrl(o?.tx_fee_invoice_pdf_url ?? null)
+    }
   }, [viewTxInvKey])
   useEffect(() => {
     setSopHtml(localStorage.getItem(`sop_${gateway}`) || '')
@@ -798,27 +812,59 @@ function GatewayWorkspace({ gateway }) {
     setInv3Preview(null); setChecked3Ids(new Set()); loadOrders()
   }
 
+  async function saveInvNote(note) {
+    localStorage.setItem(`inv_note_${viewInvKey}`, note)
+    await supabase.from('shipping_orders').update({ fee_invoice_note: note || null }).eq('fee_invoice_no', viewInvKey)
+  }
+
+  async function saveTxInvNote(note) {
+    localStorage.setItem(`txinv_note_${viewTxInvKey}`, note)
+    await supabase.from('shipping_orders').update({ tx_fee_invoice_note: note || null }).eq('tx_fee_invoice_no', viewTxInvKey)
+  }
+
+  async function uploadInvPdf(e) {
+    const f = e.target.files?.[0]; if (!f) return
+    setInvUploading(true)
+    const path = `fee/${viewInvKey}.pdf`
+    const { error } = await supabase.storage.from('invoices').upload(path, f, { upsert: true })
+    if (error) { setInvUploading(false); return }
+    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+    await supabase.from('shipping_orders').update({ fee_invoice_pdf_url: data.publicUrl }).eq('fee_invoice_no', viewInvKey)
+    setInvPdfUrl(data.publicUrl); setInvUploading(false); loadOrders()
+  }
+
+  async function uploadTxInvPdf(e) {
+    const f = e.target.files?.[0]; if (!f) return
+    setTxInvUploading(true)
+    const path = `txfee/${viewTxInvKey}.pdf`
+    const { error } = await supabase.storage.from('invoices').upload(path, f, { upsert: true })
+    if (error) { setTxInvUploading(false); return }
+    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+    await supabase.from('shipping_orders').update({ tx_fee_invoice_pdf_url: data.publicUrl }).eq('tx_fee_invoice_no', viewTxInvKey)
+    setTxInvPdfUrl(data.publicUrl); setTxInvUploading(false); loadOrders()
+  }
+
   async function deleteInvoice() {
     const ids = orders.filter(o => o.fee_invoice_no === viewInvKey).map(o => o.id)
     const { error } = await supabase.from('shipping_orders')
-      .update({ fee_invoice_no: null, fee_invoice_amount: null, fee_invoice_date: null, invoice_check: null })
+      .update({ fee_invoice_no: null, fee_invoice_amount: null, fee_invoice_date: null, invoice_check: null, fee_invoice_note: null, fee_invoice_pdf_url: null })
       .in('id', ids)
     if (error) { setInvDeleteConfirm(false); return }
+    await supabase.storage.from('invoices').remove([`fee/${viewInvKey}.pdf`])
     localStorage.removeItem(`inv_note_${viewInvKey}`)
-    setViewInvKey(null)
-    loadOrders()
+    setViewInvKey(null); loadOrders()
   }
 
   async function deleteTxInvoice() {
     const ids = orders.filter(o => o.tx_fee_invoice_no === viewTxInvKey).map(o => o.id)
     const { error } = await supabase.from('shipping_orders')
-      .update({ tx_fee_invoice_no: null })
+      .update({ tx_fee_invoice_no: null, tx_fee_invoice_note: null, tx_fee_invoice_pdf_url: null })
       .in('id', ids)
     if (error) { setTxInvDeleteConfirm(false); return }
+    await supabase.storage.from('invoices').remove([`txfee/${viewTxInvKey}.pdf`])
     localStorage.removeItem(`txinv_note_${viewTxInvKey}`)
     localStorage.removeItem(`txinv_amount_${viewTxInvKey}`)
-    setViewTxInvKey(null)
-    loadOrders()
+    setViewTxInvKey(null); loadOrders()
   }
 
   async function saveEditOrder(updates) {
@@ -861,8 +907,9 @@ function GatewayWorkspace({ gateway }) {
     const data = shownOrders.map(o => ({
       銷貨單號: o.sa_no ?? '', 訂單發票號碼: o.order_invoice_no ?? '', 對應碼: o.tx_code ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '', 交易處理費: o.tx_fee ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
-      差異: calcDiff(o) ?? '', 狀態: o.recon_status, 手續費發票號碼: o.fee_invoice_no ?? '',
-      ...(isLinePayOfficial ? { 交易處理費發票號碼: o.tx_fee_invoice_no ?? '' } : {}),
+      差異: calcDiff(o) ?? '', 狀態: o.recon_status,
+      手續費發票號碼: o.fee_invoice_no ?? '', 手續費發票備注: o.fee_invoice_note ?? '',
+      ...(isLinePayOfficial ? { 交易處理費發票號碼: o.tx_fee_invoice_no ?? '', 交易處理費發票備注: o.tx_fee_invoice_note ?? '' } : {}),
     }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), gwInfo.label || '對帳')
@@ -1536,11 +1583,27 @@ function GatewayWorkspace({ gateway }) {
                     <td style={{ padding: '8px 0' }}>
                       <textarea
                         value={invNote}
-                        onChange={e => { setInvNote(e.target.value); localStorage.setItem(`inv_note_${viewInvKey}`, e.target.value) }}
+                        onChange={e => setInvNote(e.target.value)}
+                        onBlur={e => saveInvNote(e.target.value)}
                         placeholder="輸入備注…"
                         rows={3}
                         style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                       />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>發票 PDF</td>
+                    <td style={{ padding: '8px 0' }}>
+                      <input ref={invPdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={uploadInvPdf} />
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button onClick={() => invPdfRef.current.click()} style={{ ...btnGhost, fontSize: 12 }} disabled={invUploading}>
+                          {invUploading ? '上傳中…' : invPdfUrl ? '重新上傳' : '上傳 PDF'}
+                        </button>
+                        {invPdfUrl && (
+                          <a href={invPdfUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: C.brand, textDecoration: 'underline' }}>查看 PDF</a>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -1594,11 +1657,27 @@ function GatewayWorkspace({ gateway }) {
                     <td style={{ padding: '8px 0' }}>
                       <textarea
                         value={txInvNote}
-                        onChange={e => { setTxInvNote(e.target.value); localStorage.setItem(`txinv_note_${viewTxInvKey}`, e.target.value) }}
+                        onChange={e => setTxInvNote(e.target.value)}
+                        onBlur={e => saveTxInvNote(e.target.value)}
                         placeholder="輸入備注…"
                         rows={3}
                         style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                       />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>發票 PDF</td>
+                    <td style={{ padding: '8px 0' }}>
+                      <input ref={txInvPdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={uploadTxInvPdf} />
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button onClick={() => txInvPdfRef.current.click()} style={{ ...btnGhost, fontSize: 12 }} disabled={txInvUploading}>
+                          {txInvUploading ? '上傳中…' : txInvPdfUrl ? '重新上傳' : '上傳 PDF'}
+                        </button>
+                        {txInvPdfUrl && (
+                          <a href={txInvPdfUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: C.brand, textDecoration: 'underline' }}>查看 PDF</a>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 </tbody>
