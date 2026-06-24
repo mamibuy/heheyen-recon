@@ -445,6 +445,8 @@ function GatewayWorkspace({ gateway }) {
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
   const [invNote, setInvNote] = useState('')
   const [txInvNote, setTxInvNote] = useState('')
+  const [invDeleteConfirm, setInvDeleteConfirm] = useState(false)
+  const [txInvDeleteConfirm, setTxInvDeleteConfirm] = useState(false)
 
   const [bankRows, setBankRows] = useState([])
   const [bankFileName, setBankFileName] = useState('')
@@ -499,9 +501,11 @@ function GatewayWorkspace({ gateway }) {
 
   useEffect(() => { loadOrders() }, [])
   useEffect(() => {
+    setInvDeleteConfirm(false)
     if (viewInvKey) setInvNote(localStorage.getItem(`inv_note_${viewInvKey}`) || '')
   }, [viewInvKey])
   useEffect(() => {
+    setTxInvDeleteConfirm(false)
     if (viewTxInvKey) setTxInvNote(localStorage.getItem(`txinv_note_${viewTxInvKey}`) || '')
   }, [viewTxInvKey])
   useEffect(() => {
@@ -792,6 +796,29 @@ function GatewayWorkspace({ gateway }) {
     if (inv3No) localStorage.setItem(`txinv_amount_${inv3No}`, String(amount))
     setInv3Msg(`已套用至 ${orderIds.length} 筆（${isMatch ? '相符' : '有差異'}）`)
     setInv3Preview(null); setChecked3Ids(new Set()); loadOrders()
+  }
+
+  async function deleteInvoice() {
+    const ids = orders.filter(o => o.fee_invoice_no === viewInvKey).map(o => o.id)
+    const { error } = await supabase.from('shipping_orders')
+      .update({ fee_invoice_no: null, fee_invoice_amount: null, fee_invoice_date: null, invoice_check: null })
+      .in('id', ids)
+    if (error) { setInvDeleteConfirm(false); return }
+    localStorage.removeItem(`inv_note_${viewInvKey}`)
+    setViewInvKey(null)
+    loadOrders()
+  }
+
+  async function deleteTxInvoice() {
+    const ids = orders.filter(o => o.tx_fee_invoice_no === viewTxInvKey).map(o => o.id)
+    const { error } = await supabase.from('shipping_orders')
+      .update({ tx_fee_invoice_no: null })
+      .in('id', ids)
+    if (error) { setTxInvDeleteConfirm(false); return }
+    localStorage.removeItem(`txinv_note_${viewTxInvKey}`)
+    localStorage.removeItem(`txinv_amount_${viewTxInvKey}`)
+    setViewTxInvKey(null)
+    loadOrders()
   }
 
   async function saveEditOrder(updates) {
@@ -1518,7 +1545,22 @@ function GatewayWorkspace({ gateway }) {
                   </tr>
                 </tbody>
               </table>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+                {!invDeleteConfirm ? (
+                  <button onClick={() => setInvDeleteConfirm(true)}
+                    style={{ ...btnGhost, color: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                    刪除發票資訊
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: C.danger }}>確定刪除？</span>
+                    <button onClick={deleteInvoice}
+                      style={{ ...btnPrimary, background: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                      確認
+                    </button>
+                    <button onClick={() => setInvDeleteConfirm(false)} style={{ ...btnGhost, fontSize: 12 }}>取消</button>
+                  </div>
+                )}
                 <button onClick={() => setViewInvKey(null)} style={btnGhost}>關閉</button>
               </div>
             </div>
@@ -1561,7 +1603,22 @@ function GatewayWorkspace({ gateway }) {
                   </tr>
                 </tbody>
               </table>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+                {!txInvDeleteConfirm ? (
+                  <button onClick={() => setTxInvDeleteConfirm(true)}
+                    style={{ ...btnGhost, color: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                    刪除發票資訊
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: C.danger }}>確定刪除？</span>
+                    <button onClick={deleteTxInvoice}
+                      style={{ ...btnPrimary, background: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                      確認
+                    </button>
+                    <button onClick={() => setTxInvDeleteConfirm(false)} style={{ ...btnGhost, fontSize: 12 }}>取消</button>
+                  </div>
+                )}
                 <button onClick={() => setViewTxInvKey(null)} style={btnGhost}>關閉</button>
               </div>
             </div>
