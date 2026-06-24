@@ -1341,6 +1341,11 @@ function GatewayWorkspace({ gateway }) {
                     ⚠ 尚未上傳 LINE Pay 撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
                   </p>
                 )}
+                {!isLinePayOfficial && hasPayoutMap && displayRows.length === 0 && (
+                  <p style={{ fontSize: 12, color: C.danger, margin: '0 0 10px' }}>
+                    ⚠ 撥款日期未對到銀行入帳日。撥款報表日期：{Object.keys(linepayByDate).slice(0, 5).join('、')}；銀行對帳單日期：{bankRows.slice(0, 5).map(r => r.date).join('、')}
+                  </p>
+                )}
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
                   <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                     <input type="checkbox" checked={allChecked}

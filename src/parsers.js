@@ -25,8 +25,8 @@ const num = (v) => {
 // Excel 日期序號 → YYYY-MM-DD（xlsx 常把日期讀成數字）
 function excelDate(v) {
   if (v === '' || v === null || v === undefined) return '';
-  // 已是日期字串就原樣回傳
-  if (typeof v === 'string' && /\d{4}[-/]\d/.test(v)) return v;
+  // 已是日期字串：統一換成 YYYY-MM-DD（斜線換橫線、截掉時間部分）
+  if (typeof v === 'string' && /\d{4}[-/]\d/.test(v)) return v.replace(/\//g, '-').slice(0, 10);
   const n = parseFloat(v);
   if (isNaN(n) || n < 1 || n > 90000) return String(v);
   // Excel epoch: 1899-12-30
