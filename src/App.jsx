@@ -513,8 +513,9 @@ function GatewayWorkspace({ gateway }) {
       const parsed = all.slice(1)
         .filter(r => {
           const a = String(r[9] || '')
-          if (isLineMallLinePay) return a.includes('387/0000000060558379') || a.includes('808/1229940024585')
+          if (isLineMallLinePay) return a.includes('387/0000000060558379')
           if (isLanxin) return a.includes('008/0000158100035101')
+          if (isLinePayOfficial) return a.includes('808/1229940024585')
           return false
         })
         .map(r => ({ date: excelDate(r[1]), actualDate: excelDate(r[2]), deposit: parseFloat(r[6]) || 0, summary: String(r[4] || ''), account: String(r[9] || '') }))
@@ -996,10 +997,10 @@ function GatewayWorkspace({ gateway }) {
       </Card>
 
       {/* LINE Pay / 信用卡 銀行對帳 */}
-      {(isLineMallLinePay || isLanxin) && (
+      {(isLineMallLinePay || isLanxin || isLinePayOfficial) && (
         <Card>
           <strong style={{ fontSize: 14 }}>
-            玉山銀行對帳（{isLanxin ? '信用卡 008/...35101' : 'LINE Pay 387/...60558379・808/...24585'}）
+            玉山銀行對帳（{isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）
           </strong>
           <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
             以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
@@ -1014,22 +1015,24 @@ function GatewayWorkspace({ gateway }) {
             // 從已上傳的撥款報表（rows1）建立「銀行入帳日 → 預計金額」對照表
             // 蘭新信用卡撥款日隔天才到玉山帳戶，所以用 payoutDate+1 當 bankDate
             const linepayByDate = {}
-            const payoutParser = isLanxin ? RECON_PARSERS.lanxin : RECON_PARSERS.linepay
-            if (rows1) {
-              payoutParser(rows1).forEach(r => {
-                const payoutDate = (r.in_date || '').slice(0, 10)
-                if (!payoutDate) return
-                let bankDate = payoutDate
-                if (isLanxin) {
-                  const d = new Date(payoutDate + 'T00:00:00Z')
-                  d.setUTCDate(d.getUTCDate() + 1)
-                  bankDate = d.toISOString().slice(0, 10)
-                }
-                if (!linepayByDate[bankDate]) linepayByDate[bankDate] = { expected: 0, count: 0, payoutDate }
-                linepayByDate[bankDate].expected += r.payable || 0
-                linepayByDate[bankDate].count++
-              })
-            }
+            const payoutRows = isLinePayOfficial
+              ? (rows1 && rows2 ? parseOfficialLinePayReconDual(rows1, rows2) : [])
+              : isLanxin
+                ? (rows1 ? RECON_PARSERS.lanxin(rows1) : [])
+                : (rows1 ? RECON_PARSERS.linepay(rows1) : [])
+            payoutRows.forEach(r => {
+              const payoutDate = (r.in_date || '').slice(0, 10)
+              if (!payoutDate) return
+              let bankDate = payoutDate
+              if (isLanxin) {
+                const d = new Date(payoutDate + 'T00:00:00Z')
+                d.setUTCDate(d.getUTCDate() + 1)
+                bankDate = d.toISOString().slice(0, 10)
+              }
+              if (!linepayByDate[bankDate]) linepayByDate[bankDate] = { expected: 0, count: 0, payoutDate }
+              linepayByDate[bankDate].expected += r.payable || 0
+              linepayByDate[bankDate].count++
+            })
             const hasPayoutMap = Object.keys(linepayByDate).length > 0
 
             // 只顯示「日期出現在 LINE Pay 報表」的銀行入帳（自動排除同帳號但屬於其他平台的款項）
