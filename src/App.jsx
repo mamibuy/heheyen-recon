@@ -1310,13 +1310,11 @@ function GatewayWorkspace({ gateway }) {
             // payuniCC: 已在 readBankFile 篩過，直接顯示全部
             // isLinePayOfficial: 只篩摘要含 ＰＡＹＵＮｉ 的玉山入帳
             // 其他金流: 以撥款報表日期過濾
-            const displayRows = isPayuniCC
+            const displayRows = (isPayuniCC || isLinePayOfficial)
               ? bankRows
-              : isLinePayOfficial
-                ? bankRows.filter(br => br.summary.includes('ＰＡＹＵ'))
-                : hasPayoutMap
-                  ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
-                  : bankRows
+              : hasPayoutMap
+                ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
+                : bankRows
 
             async function batchConfirm() {
               const selected = [...bankEntryChecked]
