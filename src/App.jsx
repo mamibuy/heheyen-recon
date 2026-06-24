@@ -826,7 +826,8 @@ function GatewayWorkspace({ gateway }) {
     const f = e.target.files?.[0]; if (!f) return
     setInvUploading(true)
     const path = `fee/${viewInvKey}.pdf`
-    const { error } = await supabase.storage.from('invoices').upload(path, f, { upsert: true })
+    await supabase.storage.from('invoices').remove([path])
+    const { error } = await supabase.storage.from('invoices').upload(path, f)
     if (error) { setInvUploading(false); return }
     const { data } = supabase.storage.from('invoices').getPublicUrl(path)
     await supabase.from('shipping_orders').update({ fee_invoice_pdf_url: data.publicUrl }).eq('fee_invoice_no', viewInvKey)
@@ -837,7 +838,8 @@ function GatewayWorkspace({ gateway }) {
     const f = e.target.files?.[0]; if (!f) return
     setTxInvUploading(true)
     const path = `txfee/${viewTxInvKey}.pdf`
-    const { error } = await supabase.storage.from('invoices').upload(path, f, { upsert: true })
+    await supabase.storage.from('invoices').remove([path])
+    const { error } = await supabase.storage.from('invoices').upload(path, f)
     if (error) { setTxInvUploading(false); return }
     const { data } = supabase.storage.from('invoices').getPublicUrl(path)
     await supabase.from('shipping_orders').update({ tx_fee_invoice_pdf_url: data.publicUrl }).eq('tx_fee_invoice_no', viewTxInvKey)
