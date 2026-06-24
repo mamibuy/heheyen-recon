@@ -789,6 +789,7 @@ function GatewayWorkspace({ gateway }) {
     const isMatch = amount > 0 && Math.abs(amount - txFeeSum) < 0.01
     const { error } = await supabase.from('shipping_orders').update({ tx_fee_invoice_no: inv3No || null }).in('id', orderIds)
     if (error) { setInv3Msg('錯誤：' + error.message); return }
+    if (inv3No) localStorage.setItem(`txinv_amount_${inv3No}`, String(amount))
     setInv3Msg(`已套用至 ${orderIds.length} 筆（${isMatch ? '相符' : '有差異'}）`)
     setInv3Preview(null); setChecked3Ids(new Set()); loadOrders()
   }
@@ -892,7 +893,10 @@ function GatewayWorkspace({ gateway }) {
   const txInvoiceGroups = {}
   shownOrders.forEach(o => {
     if (!o.tx_fee_invoice_no) return
-    if (!txInvoiceGroups[o.tx_fee_invoice_no]) txInvoiceGroups[o.tx_fee_invoice_no] = { txFeeSum: 0, count: 0 }
+    if (!txInvoiceGroups[o.tx_fee_invoice_no]) txInvoiceGroups[o.tx_fee_invoice_no] = {
+      txFeeSum: 0, count: 0,
+      invAmount: parseFloat(localStorage.getItem(`txinv_amount_${o.tx_fee_invoice_no}`)) || null,
+    }
     txInvoiceGroups[o.tx_fee_invoice_no].txFeeSum += o.tx_fee || 0
     txInvoiceGroups[o.tx_fee_invoice_no].count++
   })
@@ -1086,7 +1090,7 @@ function GatewayWorkspace({ gateway }) {
                             <div>
                               <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.tx_fee_invoice_no}</div>
                               <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
-                                {txGrp.count} 筆・交易處理費 {Math.round(txGrp.txFeeSum * 100) / 100}
+                                {txGrp.count} 筆・發票金額 {txGrp.invAmount != null ? txGrp.invAmount.toLocaleString() : '—'}
                               </div>
                             </div>
                           ) : o.tx_fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
@@ -1527,8 +1531,9 @@ function GatewayWorkspace({ gateway }) {
         if (!txGrpDetail) return null
         const rows = [
           ['交易處理費發票號碼', viewTxInvKey],
-          ['包含訂單', `${txGrpDetail.count} 筆`],
+          ['發票金額', txGrpDetail.invAmount != null ? `NT$ ${Number(txGrpDetail.invAmount).toLocaleString()}` : '—'],
           ['交易處理費合計', `NT$ ${Math.round(txGrpDetail.txFeeSum * 100) / 100}`],
+          ['包含訂單', `${txGrpDetail.count} 筆`],
         ]
         return (
           <div style={overlay} onClick={() => setViewTxInvKey(null)}>
