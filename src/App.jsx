@@ -449,6 +449,8 @@ function GatewayWorkspace({ gateway }) {
   const [txInvPdfUrl, setTxInvPdfUrl] = useState(null)
   const [invUploading, setInvUploading] = useState(false)
   const [txInvUploading, setTxInvUploading] = useState(false)
+  const [invUploadError, setInvUploadError] = useState('')
+  const [txInvUploadError, setTxInvUploadError] = useState('')
   const invPdfRef = useRef(null)
   const txInvPdfRef = useRef(null)
   const [invDeleteConfirm, setInvDeleteConfirm] = useState(false)
@@ -854,27 +856,35 @@ function GatewayWorkspace({ gateway }) {
 
   async function uploadInvPdf(e) {
     const f = e.target.files?.[0]; if (!f) return
-    setInvUploading(true)
+    setInvUploading(true); setInvUploadError('')
     const oldPath = storagePath(invPdfUrl)
-    if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
+    if (oldPath) {
+      const { error: rmErr } = await supabase.storage.from('invoices').remove([oldPath])
+      if (rmErr) console.warn('Storage remove:', rmErr.message)
+    }
     const path = `fee/${viewInvKey}_${Date.now()}.pdf`
-    const { error } = await supabase.storage.from('invoices').upload(path, f)
-    if (error) { setInvUploading(false); return }
+    const { error: upErr } = await supabase.storage.from('invoices').upload(path, f)
+    if (upErr) { setInvUploadError(`Storage 上傳失敗：${upErr.message}`); setInvUploading(false); return }
     const { data } = supabase.storage.from('invoices').getPublicUrl(path)
-    await supabase.from('shipping_orders').update({ fee_invoice_pdf_url: data.publicUrl }).eq('fee_invoice_no', viewInvKey)
+    const { error: dbErr } = await supabase.from('shipping_orders').update({ fee_invoice_pdf_url: data.publicUrl }).eq('fee_invoice_no', viewInvKey)
+    if (dbErr) { setInvUploadError(`DB 更新失敗：${dbErr.message}`); setInvUploading(false); return }
     setInvPdfUrl(data.publicUrl); setInvUploading(false); loadOrders()
   }
 
   async function uploadTxInvPdf(e) {
     const f = e.target.files?.[0]; if (!f) return
-    setTxInvUploading(true)
+    setTxInvUploading(true); setTxInvUploadError('')
     const oldPath = storagePath(txInvPdfUrl)
-    if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
+    if (oldPath) {
+      const { error: rmErr } = await supabase.storage.from('invoices').remove([oldPath])
+      if (rmErr) console.warn('Storage remove:', rmErr.message)
+    }
     const path = `txfee/${viewTxInvKey}_${Date.now()}.pdf`
-    const { error } = await supabase.storage.from('invoices').upload(path, f)
-    if (error) { setTxInvUploading(false); return }
+    const { error: upErr } = await supabase.storage.from('invoices').upload(path, f)
+    if (upErr) { setTxInvUploadError(`Storage 上傳失敗：${upErr.message}`); setTxInvUploading(false); return }
     const { data } = supabase.storage.from('invoices').getPublicUrl(path)
-    await supabase.from('shipping_orders').update({ tx_fee_invoice_pdf_url: data.publicUrl }).eq('tx_fee_invoice_no', viewTxInvKey)
+    const { error: dbErr } = await supabase.from('shipping_orders').update({ tx_fee_invoice_pdf_url: data.publicUrl }).eq('tx_fee_invoice_no', viewTxInvKey)
+    if (dbErr) { setTxInvUploadError(`DB 更新失敗：${dbErr.message}`); setTxInvUploading(false); return }
     setTxInvPdfUrl(data.publicUrl); setTxInvUploading(false); loadOrders()
   }
 
@@ -1659,6 +1669,7 @@ function GatewayWorkspace({ gateway }) {
                             style={{ fontSize: 12, color: C.brand, textDecoration: 'underline' }}>查看 PDF</a>
                         )}
                       </div>
+                      {invUploadError && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{invUploadError}</div>}
                     </td>
                   </tr>
                 </tbody>
@@ -1743,6 +1754,7 @@ function GatewayWorkspace({ gateway }) {
                             style={{ fontSize: 12, color: C.brand, textDecoration: 'underline' }}>查看 PDF</a>
                         )}
                       </div>
+                      {txInvUploadError && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{txInvUploadError}</div>}
                     </td>
                   </tr>
                 </tbody>
