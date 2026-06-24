@@ -442,6 +442,7 @@ function GatewayWorkspace({ gateway }) {
   const [editOrder, setEditOrder] = useState(null)
   const [editMsg, setEditMsg] = useState('')
   const [viewInvKey, setViewInvKey] = useState(null)
+  const [viewTxInvKey, setViewTxInvKey] = useState(null)
 
   const [bankRows, setBankRows] = useState([])
   const [bankFileName, setBankFileName] = useState('')
@@ -880,6 +881,14 @@ function GatewayWorkspace({ gateway }) {
     invoiceGroups[o.fee_invoice_no].feeSum += o.fee_total || 0
     invoiceGroups[o.fee_invoice_no].count++
   })
+  const txInvoiceGroups = {}
+  shownOrders.forEach(o => {
+    if (!o.tx_fee_invoice_no) return
+    if (!txInvoiceGroups[o.tx_fee_invoice_no]) txInvoiceGroups[o.tx_fee_invoice_no] = { txFeeSum: 0, count: 0 }
+    txInvoiceGroups[o.tx_fee_invoice_no].txFeeSum += o.tx_fee || 0
+    txInvoiceGroups[o.tx_fee_invoice_no].count++
+  })
+
   const INV_BG = ['#e6f4f0', '#e8edf8']   // 交替淡綠 / 淡藍
   const invColorIdx = {}
   let _ci = 0
@@ -1002,6 +1011,7 @@ function GatewayWorkspace({ gateway }) {
             <tbody>
               {(() => {
                 const seenInv = new Set()
+                const seenTxInv = new Set()
                 return shownOrders.map((o, i) => {
                   const d = calcDiff(o); const hasDiff = d != null && d !== 0
                   const invBg = o.fee_invoice_no ? INV_BG[invColorIdx[o.fee_invoice_no]] : undefined
@@ -1009,6 +1019,9 @@ function GatewayWorkspace({ gateway }) {
                   const isFirstInv = o.fee_invoice_no && !seenInv.has(o.fee_invoice_no)
                   if (o.fee_invoice_no) seenInv.add(o.fee_invoice_no)
                   const grp = o.fee_invoice_no ? invoiceGroups[o.fee_invoice_no] : null
+                  const isFirstTxInv = o.tx_fee_invoice_no && !seenTxInv.has(o.tx_fee_invoice_no)
+                  if (o.tx_fee_invoice_no) seenTxInv.add(o.tx_fee_invoice_no)
+                  const txGrp = o.tx_fee_invoice_no ? txInvoiceGroups[o.tx_fee_invoice_no] : null
                   return (
                     <tr key={i} style={{ background: rowBg }}>
                       <td style={td}>
@@ -1057,7 +1070,19 @@ function GatewayWorkspace({ gateway }) {
                         ) : o.fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
                       </td>
                       {isLinePayOfficial && (
-                        <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.tx_fee_invoice_no || '—'}</td>
+                        <td
+                          style={{ ...td, fontFamily: 'monospace', fontSize: 12, cursor: o.tx_fee_invoice_no ? 'pointer' : 'default' }}
+                          onClick={o.tx_fee_invoice_no ? () => setViewTxInvKey(o.tx_fee_invoice_no) : undefined}
+                        >
+                          {isFirstTxInv && txGrp ? (
+                            <div>
+                              <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.tx_fee_invoice_no}</div>
+                              <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
+                                {txGrp.count} 筆・交易處理費 {Math.round(txGrp.txFeeSum * 100) / 100}
+                              </div>
+                            </div>
+                          ) : o.tx_fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
+                        </td>
                       )}
                     </tr>
                   )
@@ -1471,6 +1496,36 @@ function GatewayWorkspace({ gateway }) {
               </table>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
                 <button onClick={() => setViewInvKey(null)} style={btnGhost}>關閉</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {viewTxInvKey && (() => {
+        const txGrpDetail = txInvoiceGroups[viewTxInvKey]
+        if (!txGrpDetail) return null
+        const rows = [
+          ['交易處理費發票號碼', viewTxInvKey],
+          ['包含訂單', `${txGrpDetail.count} 筆`],
+          ['交易處理費合計', `NT$ ${Math.round(txGrpDetail.txFeeSum * 100) / 100}`],
+        ]
+        return (
+          <div style={overlay} onClick={() => setViewTxInvKey(null)}>
+            <div style={{ ...modal, width: 360 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>交易處理費發票資訊</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <tbody>
+                  {rows.map(([label, val]) => (
+                    <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '8px 0', color: C.sub, width: 130 }}>{label}</td>
+                      <td style={{ padding: '8px 0', fontFamily: label === '交易處理費發票號碼' ? 'monospace' : 'inherit' }}>{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+                <button onClick={() => setViewTxInvKey(null)} style={btnGhost}>關閉</button>
               </div>
             </div>
           </div>
