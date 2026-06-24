@@ -822,11 +822,19 @@ function GatewayWorkspace({ gateway }) {
     await supabase.from('shipping_orders').update({ tx_fee_invoice_note: note || null }).eq('tx_fee_invoice_no', viewTxInvKey)
   }
 
+  function storagePath(url) {
+    if (!url) return null
+    const marker = '/object/public/invoices/'
+    const idx = url.indexOf(marker)
+    return idx >= 0 ? url.slice(idx + marker.length) : null
+  }
+
   async function uploadInvPdf(e) {
     const f = e.target.files?.[0]; if (!f) return
     setInvUploading(true)
-    const path = `fee/${viewInvKey}.pdf`
-    await supabase.storage.from('invoices').remove([path])
+    const oldPath = storagePath(invPdfUrl)
+    if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
+    const path = `fee/${viewInvKey}_${Date.now()}.pdf`
     const { error } = await supabase.storage.from('invoices').upload(path, f)
     if (error) { setInvUploading(false); return }
     const { data } = supabase.storage.from('invoices').getPublicUrl(path)
@@ -837,8 +845,9 @@ function GatewayWorkspace({ gateway }) {
   async function uploadTxInvPdf(e) {
     const f = e.target.files?.[0]; if (!f) return
     setTxInvUploading(true)
-    const path = `txfee/${viewTxInvKey}.pdf`
-    await supabase.storage.from('invoices').remove([path])
+    const oldPath = storagePath(txInvPdfUrl)
+    if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
+    const path = `txfee/${viewTxInvKey}_${Date.now()}.pdf`
     const { error } = await supabase.storage.from('invoices').upload(path, f)
     if (error) { setTxInvUploading(false); return }
     const { data } = supabase.storage.from('invoices').getPublicUrl(path)
@@ -848,22 +857,26 @@ function GatewayWorkspace({ gateway }) {
 
   async function deleteInvoice() {
     const ids = orders.filter(o => o.fee_invoice_no === viewInvKey).map(o => o.id)
+    const existingUrl = orders.find(o => o.fee_invoice_no === viewInvKey)?.fee_invoice_pdf_url
     const { error } = await supabase.from('shipping_orders')
       .update({ fee_invoice_no: null, fee_invoice_amount: null, fee_invoice_date: null, invoice_check: null, fee_invoice_note: null, fee_invoice_pdf_url: null })
       .in('id', ids)
     if (error) { setInvDeleteConfirm(false); return }
-    await supabase.storage.from('invoices').remove([`fee/${viewInvKey}.pdf`])
+    const oldPath = storagePath(existingUrl)
+    if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
     localStorage.removeItem(`inv_note_${viewInvKey}`)
     setViewInvKey(null); loadOrders()
   }
 
   async function deleteTxInvoice() {
     const ids = orders.filter(o => o.tx_fee_invoice_no === viewTxInvKey).map(o => o.id)
+    const existingUrl = orders.find(o => o.tx_fee_invoice_no === viewTxInvKey)?.tx_fee_invoice_pdf_url
     const { error } = await supabase.from('shipping_orders')
       .update({ tx_fee_invoice_no: null, tx_fee_invoice_note: null, tx_fee_invoice_pdf_url: null })
       .in('id', ids)
     if (error) { setTxInvDeleteConfirm(false); return }
-    await supabase.storage.from('invoices').remove([`txfee/${viewTxInvKey}.pdf`])
+    const oldPath = storagePath(existingUrl)
+    if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
     localStorage.removeItem(`txinv_note_${viewTxInvKey}`)
     localStorage.removeItem(`txinv_amount_${viewTxInvKey}`)
     setViewTxInvKey(null); loadOrders()
