@@ -445,9 +445,10 @@ function GatewayWorkspace({ gateway }) {
 
   const [bankRows, setBankRows] = useState([])
   const [bankFileName, setBankFileName] = useState('')
-  const [bankSel, setBankSel] = useState({})       // { String(idx): Set<orderId> }
+  const [bankSel, setBankSel] = useState({})
   const [bankExpanded, setBankExpanded] = useState({})
-  const [bankMsg, setBankMsg] = useState({})   // { idx: 訊息字串 }
+  const [bankMsg, setBankMsg] = useState({})
+  const [bankEntryChecked, setBankEntryChecked] = useState(new Set())
   const bankFileRef = useRef(null)
 
   const [ordInvRows, setOrdInvRows] = useState(null)
@@ -522,6 +523,7 @@ function GatewayWorkspace({ gateway }) {
       setBankRows(parsed)
       setBankSel({})
       setBankExpanded({})
+      setBankEntryChecked(new Set())
     }
     reader.readAsArrayBuffer(f)
   }
@@ -888,7 +890,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '差異', '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])].map(c => {
+                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', ...(isLinePayOfficial ? [] : ['差異']), '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])].map(c => {
                   const key = SORT_KEY[c]
                   const active = sortCol === key
                   return (
@@ -933,9 +935,11 @@ function GatewayWorkspace({ gateway }) {
                       <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
                       <td style={td}>{o.in_date || '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', color: hasDiff ? C.danger : C.ink, fontWeight: hasDiff ? 600 : 400 }}>
-                        {d != null ? d.toLocaleString() : '—'}
-                      </td>
+                      {!isLinePayOfficial && (
+                        <td style={{ ...td, textAlign: 'right', color: hasDiff ? C.danger : C.ink, fontWeight: hasDiff ? 600 : 400 }}>
+                          {d != null ? d.toLocaleString() : '—'}
+                        </td>
+                      )}
                       <td style={td}>
                         <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
                           background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
@@ -963,7 +967,7 @@ function GatewayWorkspace({ gateway }) {
                 })
               })()}
               {shownOrders.length === 0 && (
-                <tr><td colSpan={16 + (isLinePayOfficial ? 1 : 0)} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
@@ -1033,6 +1037,30 @@ function GatewayWorkspace({ gateway }) {
               ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
               : bankRows
 
+            async function batchConfirm() {
+              const selected = [...bankEntryChecked]
+              if (!selected.length) return
+              setBankMsg(p => { const n = {...p}; selected.forEach(i => { n[i] = '寫入中…' }); return n })
+              let hasErr = false
+              for (const idx of selected) {
+                const br = displayRows[idx]
+                if (!br) continue
+                const payoutInfo = linepayByDate[br.date]
+                const matchDate = payoutInfo?.payoutDate || br.date
+                const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                for (const o of dateOrders) {
+                  const { error } = await supabase.from('shipping_orders')
+                    .update({ in_date: br.date, actual_in: o.payable, recon_status: '已入帳' }).eq('id', o.id)
+                  if (error) { hasErr = true; break }
+                }
+                if (!hasErr) setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+                else break
+              }
+              if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
+            }
+
+            const allChecked = displayRows.length > 0 && bankEntryChecked.size === displayRows.length
+
             return (
               <div style={{ marginTop: 14 }}>
                 {!hasPayoutMap && (
@@ -1040,6 +1068,18 @@ function GatewayWorkspace({ gateway }) {
                     ⚠ 尚未上傳 LINE Pay 撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
                   </p>
                 )}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                  <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={allChecked}
+                      onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
+                    全選
+                  </label>
+                  {bankEntryChecked.size > 0 && (
+                    <button onClick={batchConfirm} style={{ ...btnPrimary, fontSize: 13 }}>
+                      批次確認入帳（{bankEntryChecked.size} 筆）
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {displayRows.map((br, idx) => {
                     const payoutInfo = linepayByDate[br.date]
@@ -1050,9 +1090,12 @@ function GatewayWorkspace({ gateway }) {
                     const matchDate = payoutInfo?.payoutDate || br.date
                     const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
                     const ordersPayable = Math.round(dateOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                    const entryChecked = bankEntryChecked.has(idx)
                     return (
-                      <div key={idx} style={{ border: `1.5px solid ${isMatch ? C.brand : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: isMatch ? '#f0faf5' : '#fff' }}>
+                      <div key={idx} style={{ border: `1.5px solid ${entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: entryChecked ? C.brandBg : isMatch ? '#f0faf5' : '#fff' }}>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input type="checkbox" checked={entryChecked}
+                            onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
                           <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
                           {expected != null && (
                             <span style={{ fontSize: 13, color: C.sub }}>
