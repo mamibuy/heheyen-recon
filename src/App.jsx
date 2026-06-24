@@ -481,6 +481,11 @@ function GatewayWorkspace({ gateway }) {
   const [inv3Msg, setInv3Msg] = useState('')
   const [checked3Ids, setChecked3Ids] = useState(new Set())
 
+  const [txFeeAccRows, setTxFeeAccRows] = useState([])
+  const [txFeeAccFileName, setTxFeeAccFileName] = useState('')
+  const [txFeeAccInDate, setTxFeeAccInDate] = useState({})
+  const txFeeAccFileRef = useRef(null)
+
   useEffect(() => { loadOrders() }, [])
 
   async function loadOrders() {
@@ -529,6 +534,29 @@ function GatewayWorkspace({ gateway }) {
     reader.readAsArrayBuffer(f)
   }
 
+  function readTxFeeAccFile(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setTxFeeAccFileName(f.name)
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const wb = XLSX.read(ev.target.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const all = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      const filtered = all
+        .filter(r => String(r['執行方式'] || '').trim() === '資訊服務')
+        .map(r => ({
+          procNo: String(r['處理序號'] || r['序號'] || '').trim(),
+          date: String(r['日期'] || r['交易日期'] || '').trim().slice(0, 10),
+          fee: Math.abs(parseFloat(String(r['費用'] || r['金額'] || '0').replace(/,/g, '')) || 0),
+        }))
+        .filter(r => r.procNo || r.date)
+      setTxFeeAccRows(filtered)
+      setTxFeeAccInDate({})
+    }
+    reader.readAsArrayBuffer(f)
+  }
+
   function toggleBankSel(idx, ordId) {
     setBankSel(prev => {
       const s = new Set(prev[idx] || [])
@@ -548,11 +576,18 @@ function GatewayWorkspace({ gateway }) {
         .eq('id', o.id)
       if (error) { hasErr = true; break }
     }
-    if (hasErr) {
-      setBankMsg(p => ({ ...p, [idx]: '❌ 寫入失敗' }))
-    } else {
+    if (!hasErr) {
+      if (isLinePayOfficial && txFeeAccRows.length > 0) {
+        setTxFeeAccInDate(p => {
+          const n = { ...p }
+          txFeeAccRows.forEach((_, i) => { n[i] = br.date })
+          return n
+        })
+      }
       setBankMsg(p => ({ ...p, [idx]: `✓ 已回填 ${dateOrders.length} 筆` }))
       await loadOrders()
+    } else {
+      setBankMsg(p => ({ ...p, [idx]: '❌ 寫入失敗' }))
     }
   }
 
@@ -1035,10 +1070,13 @@ function GatewayWorkspace({ gateway }) {
             })
             const hasPayoutMap = Object.keys(linepayByDate).length > 0
 
-            // 只顯示「日期出現在 LINE Pay 報表」的銀行入帳（自動排除同帳號但屬於其他平台的款項）
-            const displayRows = hasPayoutMap
-              ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
-              : bankRows
+            // isLinePayOfficial: 只篩摘要含 ＰＡＹＵＮｉ 的玉山入帳
+            // 其他金流: 以撥款報表日期過濾
+            const displayRows = isLinePayOfficial
+              ? bankRows.filter(br => br.summary.includes('ＰＡＹＵ'))
+              : hasPayoutMap
+                ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
+                : bankRows
 
             async function batchConfirm() {
               const selected = [...bankEntryChecked]
@@ -1048,16 +1086,28 @@ function GatewayWorkspace({ gateway }) {
               for (const idx of selected) {
                 const br = displayRows[idx]
                 if (!br) continue
-                const payoutInfo = linepayByDate[br.date]
-                const matchDate = payoutInfo?.payoutDate || br.date
-                const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                const dateOrders = isLinePayOfficial
+                  ? orders.filter(o => o.recon_status !== '已入帳')
+                  : (() => {
+                      const payoutInfo = linepayByDate[br.date]
+                      const matchDate = payoutInfo?.payoutDate || br.date
+                      return orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                    })()
                 for (const o of dateOrders) {
                   const { error } = await supabase.from('shipping_orders')
                     .update({ in_date: br.date, actual_in: o.payable, recon_status: '已入帳' }).eq('id', o.id)
                   if (error) { hasErr = true; break }
                 }
-                if (!hasErr) setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
-                else break
+                if (!hasErr) {
+                  if (isLinePayOfficial && txFeeAccRows.length > 0) {
+                    setTxFeeAccInDate(p => {
+                      const n = { ...p }
+                      txFeeAccRows.forEach((_, i) => { n[i] = br.date })
+                      return n
+                    })
+                  }
+                  setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+                } else break
               }
               if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
             }
@@ -1066,7 +1116,7 @@ function GatewayWorkspace({ gateway }) {
 
             return (
               <div style={{ marginTop: 14 }}>
-                {!hasPayoutMap && (
+                {!isLinePayOfficial && !hasPayoutMap && (
                   <p style={{ fontSize: 12, color: C.warn, margin: '0 0 10px' }}>
                     ⚠ 尚未上傳 LINE Pay 撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
                   </p>
@@ -1085,14 +1135,17 @@ function GatewayWorkspace({ gateway }) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {displayRows.map((br, idx) => {
-                    const payoutInfo = linepayByDate[br.date]
+                    const payoutInfo = isLinePayOfficial ? null : linepayByDate[br.date]
                     const expected = payoutInfo ? Math.round(payoutInfo.expected * 100) / 100 : null
                     const diff = expected != null ? Math.round((br.deposit - expected) * 100) / 100 : null
                     const isMatch = diff != null && Math.abs(diff) <= 2
                     const expanded = !!bankExpanded[idx]
                     const matchDate = payoutInfo?.payoutDate || br.date
-                    const dateOrders = orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                    const dateOrders = isLinePayOfficial
+                      ? orders.filter(o => o.recon_status !== '已入帳')
+                      : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
                     const ordersPayable = Math.round(dateOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                    const txFeeTotal = txFeeAccRows.reduce((s, r) => s + r.fee, 0)
                     const entryChecked = bankEntryChecked.has(idx)
                     return (
                       <div key={idx} style={{ border: `1.5px solid ${entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: entryChecked ? C.brandBg : isMatch ? '#f0faf5' : '#fff' }}>
@@ -1100,6 +1153,9 @@ function GatewayWorkspace({ gateway }) {
                           <input type="checkbox" checked={entryChecked}
                             onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
                           <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
+                          {isLinePayOfficial && br.summary && (
+                            <span style={{ fontSize: 12, color: C.sub, fontFamily: 'monospace' }}>{br.summary}</span>
+                          )}
                           {expected != null && (
                             <span style={{ fontSize: 13, color: C.sub }}>
                               {isLanxin ? '蘭新預計撥款：' : 'LINE Pay 預計：'}<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）{payoutInfo.payoutDate && isLanxin && <span style={{ fontSize: 11, marginLeft: 4 }}>撥款日 {payoutInfo.payoutDate}</span>}
@@ -1108,6 +1164,11 @@ function GatewayWorkspace({ gateway }) {
                           <span style={{ fontSize: 13 }}>
                             銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong>
                           </span>
+                          {isLinePayOfficial && txFeeAccRows.length > 0 && (
+                            <span style={{ fontSize: 13, color: C.danger }}>
+                              交易處理費：<strong>-NT$ {txFeeTotal.toLocaleString()}</strong>（{txFeeAccRows.length} 筆）
+                            </span>
+                          )}
                           <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>
                           {diff != null && (
                             <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
@@ -1162,6 +1223,26 @@ function GatewayWorkspace({ gateway }) {
                                 </tr>
                               </tbody>
                             </table>
+                            {isLinePayOfficial && txFeeAccRows.length > 0 && (
+                              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
+                                <thead>
+                                  <tr style={{ color: C.sub }}>
+                                    <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>處理序號</th>
+                                    <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>日期</th>
+                                    <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400, color: C.danger }}>交易處理費（負）</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {txFeeAccRows.map((r, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                      <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
+                                      <td style={{ padding: '4px 6px' }}>{r.date || '—'}</td>
+                                      <td style={{ padding: '4px 6px', textAlign: 'right', color: C.danger }}>-{r.fee.toLocaleString()}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1428,6 +1509,54 @@ function GatewayWorkspace({ gateway }) {
           </Card>
         )
       })()}
+
+      {isLinePayOfficial && (
+        <Card>
+          <strong style={{ fontSize: 14 }}>官網 LINE Pay 交易處理費</strong>
+          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
+            上傳 PayUni 帳戶明細，自動篩選「執行方式 = 資訊服務」的帳戶層服務費
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
+            <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls"
+              onChange={readTxFeeAccFile} />
+            <button onClick={() => txFeeAccFileRef.current.click()} style={btnGhost}>上傳帳戶明細</button>
+            {txFeeAccFileName && <span style={{ fontSize: 12, color: C.sub }}>{txFeeAccFileName}</span>}
+          </div>
+          {txFeeAccRows.length > 0 && (
+            <div style={{ marginTop: 12, overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5' }}>
+                    {['處理序號', '日期', '費用', '入帳日'].map(h => (
+                      <th key={h} style={{ ...th, fontWeight: 600 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {txFeeAccRows.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ ...td, fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
+                      <td style={td}>{r.date || '—'}</td>
+                      <td style={{ ...td, textAlign: 'right', color: C.danger }}>-{r.fee.toLocaleString()}</td>
+                      <td style={td}>{txFeeAccInDate[i] || '—'}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ fontWeight: 600, borderTop: '1px solid #ddd' }}>
+                    <td colSpan={2} style={{ ...td, color: C.sub, fontSize: 11 }}>合計</td>
+                    <td style={{ ...td, textAlign: 'right', color: C.danger }}>
+                      -{txFeeAccRows.reduce((s, r) => s + r.fee, 0).toLocaleString()}
+                    </td>
+                    <td style={td} />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+          {txFeeAccRows.length === 0 && txFeeAccFileName && (
+            <p style={{ fontSize: 12, color: C.warn, marginTop: 8 }}>未找到「執行方式 = 資訊服務」的資料</p>
+          )}
+        </Card>
+      )}
     </div>
   )
 }
