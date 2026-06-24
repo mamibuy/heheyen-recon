@@ -115,27 +115,29 @@ function parseCoupang(rows) {
 
 // ---------- 官網（大筆） ----------
 function parseOfficial(rows) {
-  return rows.map((r) => {
-    return {
-      platform: '官網',
-      ref_no: pick(r, ['參照編號', '訂單編號']),
-      order_date: excelDate(pick(r, ['日期', '訂單日期'])),
-      contact: pick(r, ['聯絡人', '訂購人', '收件人姓名']),
-      address: pick(r, ['地址']),
-      phone: pick(r, ['電話']),
-      email: pick(r, ['Email', '電子郵件']),
-      pay_method: pick(r, ['付款方式']),  // 線上刷卡 / Line Pay / Apple Pay
-      note: pick(r, ['備註']) || '官網',
-      store: pick(r, ['商店']) || 'HEHEYEN和和研',
-      pkg_count: num(pick(r, ['件數'])) || 1,
-      tracking_no: pick(r, ['託運單號']),
-      total: num(pick(r, ['總計', '訂單金額'])),
-      shipping_fee: num(pick(r, ['運費'])),
-      product_text: pick(r, ['品項', '商品名稱', '商品資訊']),
-      direct_code: pick(r, ['編碼']),
-      qty_platform: num(pick(r, ['數量'])) || 1,
-    };
-  }).filter((o) => o.ref_no);
+  return rows
+    .filter(r => String(pick(r, ['品項', '商品名稱', '商品資訊']) || '').trim() !== '運費')
+    .map((r) => {
+      return {
+        platform: '官網',
+        ref_no: pick(r, ['參照編號', '訂單編號']),
+        order_date: excelDate(pick(r, ['日期', '訂單日期'])),
+        contact: pick(r, ['聯絡人', '訂購人', '收件人姓名']),
+        address: pick(r, ['地址']),
+        phone: pick(r, ['電話']),
+        email: pick(r, ['Email', '電子郵件']),
+        pay_method: pick(r, ['付款方式']),
+        note: pick(r, ['備註']) || '官網',
+        store: pick(r, ['商店']) || 'HEHEYEN和和研',
+        pkg_count: num(pick(r, ['件數'])) || 1,
+        tracking_no: pick(r, ['託運單號']),
+        total: num(pick(r, ['含稅總計', '總計', '訂單金額'])),
+        shipping_fee: 0,
+        product_text: pick(r, ['品項', '商品名稱', '商品資訊']),
+        direct_code: pick(r, ['編碼']),
+        qty_platform: num(pick(r, ['數量'])) || 1,
+      };
+    }).filter((o) => o.ref_no);
 }
 
 export const PARSERS = {
