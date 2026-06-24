@@ -423,6 +423,7 @@ function GatewayWorkspace({ gateway }) {
   const isLinePayOfficial = gateway === 'payuni_linepay'
   const isLineMallLinePay = gateway === 'linepay'
   const isLanxin = gateway === 'lanxin'
+  const isPayuniCC = gateway === 'payuni_cc'
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
   const [rows1, setRows1] = useState(null)
@@ -461,6 +462,7 @@ function GatewayWorkspace({ gateway }) {
   const [invPopupDate, setInvPopupDate] = useState('')
   const [invPopupAmount, setInvPopupAmount] = useState('')
   const [txInvPopupAmount, setTxInvPopupAmount] = useState('')
+  const [txInvPopupDate, setTxInvPopupDate] = useState('')
 
   const [bankRows, setBankRows] = useState([])
   const [bankFileName, setBankFileName] = useState('')
@@ -468,6 +470,7 @@ function GatewayWorkspace({ gateway }) {
   const [bankExpanded, setBankExpanded] = useState({})
   const [bankMsg, setBankMsg] = useState({})
   const [bankEntryChecked, setBankEntryChecked] = useState(new Set())
+  const [bankCCOrderSel, setBankCCOrderSel] = useState({})
   const bankFileRef = useRef(null)
 
   const [ordInvRows, setOrdInvRows] = useState(null)
@@ -531,6 +534,7 @@ function GatewayWorkspace({ gateway }) {
       setTxInvNote(o?.tx_fee_invoice_note ?? localStorage.getItem(`txinv_note_${viewTxInvKey}`) ?? '')
       setTxInvPdfUrl(o?.tx_fee_invoice_pdf_url ?? null)
       setTxInvPopupAmount(localStorage.getItem(`txinv_amount_${viewTxInvKey}`) ?? '')
+      setTxInvPopupDate(localStorage.getItem(`txinv_date_${viewTxInvKey}`) ?? '')
     }
   }, [viewTxInvKey])
   useEffect(() => {
@@ -574,6 +578,7 @@ function GatewayWorkspace({ gateway }) {
       const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
       const parsed = all.slice(1)
         .filter(r => {
+          if (isPayuniCC) return String(r[4] || '').includes('ＰＡＹＵ')
           const a = String(r[9] || '')
           if (isLineMallLinePay) return a.includes('387/0000000060558379')
           if (isLanxin) return a.includes('008/0000158100035101')
@@ -587,6 +592,7 @@ function GatewayWorkspace({ gateway }) {
       setBankSel({})
       setBankExpanded({})
       setBankEntryChecked(new Set())
+      setBankCCOrderSel({})
     }
     reader.readAsArrayBuffer(f)
   }
@@ -665,10 +671,13 @@ function GatewayWorkspace({ gateway }) {
   }
 
   async function confirmBankEntry(idx, br, dateOrders) {
-    if (dateOrders.length === 0) return
+    const ordersToUpdate = isPayuniCC
+      ? dateOrders.filter(o => bankCCOrderSel[idx]?.has(String(o.id)))
+      : dateOrders
+    if (ordersToUpdate.length === 0) return
     setBankMsg(p => ({ ...p, [idx]: '寫入中…' }))
     let hasErr = false
-    for (const o of dateOrders) {
+    for (const o of ordersToUpdate) {
       const { error } = await supabase
         .from('shipping_orders')
         .update({ in_date: br.date, actual_in: o.payable, recon_status: '已入帳' })
@@ -850,6 +859,10 @@ function GatewayWorkspace({ gateway }) {
     localStorage.setItem(`txinv_amount_${viewTxInvKey}`, amount)
   }
 
+  function saveTxInvPopupDate(date) {
+    localStorage.setItem(`txinv_date_${viewTxInvKey}`, date)
+  }
+
   function storagePath(url) {
     if (!url) return null
     const marker = '/object/public/invoices/'
@@ -915,6 +928,7 @@ function GatewayWorkspace({ gateway }) {
     if (oldPath) await supabase.storage.from('invoices').remove([oldPath])
     localStorage.removeItem(`txinv_note_${viewTxInvKey}`)
     localStorage.removeItem(`txinv_amount_${viewTxInvKey}`)
+    localStorage.removeItem(`txinv_date_${viewTxInvKey}`)
     setViewTxInvKey(null); loadOrders()
   }
 
@@ -958,7 +972,7 @@ function GatewayWorkspace({ gateway }) {
     const data = shownOrders.map(o => ({
       銷貨單號: o.sa_no ?? '', 訂單發票號碼: o.order_invoice_no ?? '', 對應碼: o.tx_code ?? '', 平台訂單編號: o.ref_no, 訂單日期: o.order_date ?? '', 應收: o.total, 手續費: o.fee_total ?? '', 交易處理費: o.tx_fee ?? '',
       應入帳: o.payable ?? '', 實際入帳: o.actual_in ?? '', 入帳日: o.in_date ?? '',
-      差異: calcDiff(o) ?? '', 狀態: o.recon_status,
+      狀態: o.recon_status,
       手續費發票號碼: o.fee_invoice_no ?? '', 手續費發票備注: o.fee_invoice_note ?? '',
       ...(isLinePayOfficial ? { 交易處理費發票號碼: o.tx_fee_invoice_no ?? '', 交易處理費發票備注: o.tx_fee_invoice_note ?? '' } : {}),
     }))
@@ -972,7 +986,7 @@ function GatewayWorkspace({ gateway }) {
   const SORT_KEY = {
     '銷貨單號': 'sa_no', '訂單發票號碼': 'order_invoice_no', '對應碼': 'tx_code', '平台訂單編號': 'ref_no', '訂單日期': 'order_date',
     '應收': 'total', '手續費': 'fee_total', '交易處理費': 'tx_fee', '應入帳': 'payable',
-    '實際入帳': 'actual_in', '入帳日': 'in_date', '差異': '_diff',
+    '實際入帳': 'actual_in', '入帳日': 'in_date',
     '狀態': 'recon_status', '手續費發票號碼': 'fee_invoice_no', '交易處理費發票號碼': 'tx_fee_invoice_no',
   }
 
@@ -982,7 +996,6 @@ function GatewayWorkspace({ gateway }) {
   }
 
   function getVal(o, key) {
-    if (key === '_diff') return calcDiff(o) ?? -Infinity
     const v = o[key]
     return v == null ? '' : v
   }
@@ -991,7 +1004,6 @@ function GatewayWorkspace({ gateway }) {
     .filter(o => {
       if (filterStatus && o.recon_status !== filterStatus) return false
       if (filterMonth && (o.order_date || '').slice(0, 7) !== filterMonth) return false
-      if (onlyDiff) { const d = calcDiff(o); if (d == null || d === 0) return false }
       return true
     })
     .sort((a, b) => {
@@ -1106,10 +1118,6 @@ function GatewayWorkspace({ gateway }) {
               <option value="">全部狀態</option>
               {STATUSES.map(s => <option key={s}>{s}</option>)}
             </select>
-            <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-              <input type="checkbox" checked={onlyDiff} onChange={e => setOnlyDiff(e.target.checked)} />
-              只看差異
-            </label>
             <span style={{ fontSize: 13, color: C.sub }}>{shownOrders.length} 筆</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1133,7 +1141,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', ...(isLinePayOfficial ? [] : ['差異']), '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])].map(c => {
+                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])].map(c => {
                   const key = SORT_KEY[c]
                   const active = sortCol === key
                   return (
@@ -1150,7 +1158,6 @@ function GatewayWorkspace({ gateway }) {
                 const seenInv = new Set()
                 const seenTxInv = new Set()
                 return shownOrders.map((o, i) => {
-                  const d = calcDiff(o); const hasDiff = d != null && d !== 0
                   const invBg = o.fee_invoice_no ? INV_BG[invColorIdx[o.fee_invoice_no]] : undefined
                   const rowBg = selectedIds.has(o.id) ? C.brandBg : invBg
                   const isFirstInv = o.fee_invoice_no && !seenInv.has(o.fee_invoice_no)
@@ -1182,11 +1189,6 @@ function GatewayWorkspace({ gateway }) {
                       <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
                       <td style={td}>{o.in_date || '—'}</td>
-                      {!isLinePayOfficial && (
-                        <td style={{ ...td, textAlign: 'right', color: hasDiff ? C.danger : C.ink, fontWeight: hasDiff ? 600 : 400 }}>
-                          {d != null ? d.toLocaleString() : '—'}
-                        </td>
-                      )}
                       <td style={td}>
                         <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
                           background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
@@ -1255,13 +1257,15 @@ function GatewayWorkspace({ gateway }) {
       </Card>
 
       {/* LINE Pay / 信用卡 銀行對帳 */}
-      {(isLineMallLinePay || isLanxin || isLinePayOfficial) && (
+      {(isLineMallLinePay || isLanxin || isLinePayOfficial || isPayuniCC) && (
         <Card>
           <strong style={{ fontSize: 14 }}>
-            玉山銀行對帳（{isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）
+            玉山銀行對帳（{isPayuniCC ? 'PayUNi 信用卡' : isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）
           </strong>
           <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
+            {isPayuniCC
+              ? '從玉山對帳單篩出摘要含 PAYUNi 的入帳，手動選取對應訂單後確認入帳日'
+              : '以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款'}
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
             <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
@@ -1293,13 +1297,16 @@ function GatewayWorkspace({ gateway }) {
             })
             const hasPayoutMap = Object.keys(linepayByDate).length > 0
 
+            // payuniCC: 已在 readBankFile 篩過，直接顯示全部
             // isLinePayOfficial: 只篩摘要含 ＰＡＹＵＮｉ 的玉山入帳
             // 其他金流: 以撥款報表日期過濾
-            const displayRows = isLinePayOfficial
-              ? bankRows.filter(br => br.summary.includes('ＰＡＹＵ'))
-              : hasPayoutMap
-                ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
-                : bankRows
+            const displayRows = isPayuniCC
+              ? bankRows
+              : isLinePayOfficial
+                ? bankRows.filter(br => br.summary.includes('ＰＡＹＵ'))
+                : hasPayoutMap
+                  ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
+                  : bankRows
 
             async function batchConfirm() {
               const selected = [...bankEntryChecked]
@@ -1349,18 +1356,20 @@ function GatewayWorkspace({ gateway }) {
                     ⚠ 撥款日期未對到銀行入帳日。撥款報表日期：{Object.keys(linepayByDate).slice(0, 5).join('、')}；銀行對帳單日期：{bankRows.slice(0, 5).map(r => r.date).join('、')}
                   </p>
                 )}
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                  <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={allChecked}
-                      onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
-                    全選
-                  </label>
-                  {bankEntryChecked.size > 0 && (
-                    <button onClick={batchConfirm} style={{ ...btnPrimary, fontSize: 13 }}>
-                      批次確認入帳（{bankEntryChecked.size} 筆）
-                    </button>
-                  )}
-                </div>
+                {!isPayuniCC && (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                    <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={allChecked}
+                        onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
+                      全選
+                    </label>
+                    {bankEntryChecked.size > 0 && (
+                      <button onClick={batchConfirm} style={{ ...btnPrimary, fontSize: 13 }}>
+                        批次確認入帳（{bankEntryChecked.size} 筆）
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {displayRows.map((br, idx) => {
                     const payoutInfo = isLinePayOfficial ? null : linepayByDate[br.date]
@@ -1369,19 +1378,31 @@ function GatewayWorkspace({ gateway }) {
                     const isMatch = diff != null && Math.abs(diff) <= 2
                     const expanded = !!bankExpanded[idx]
                     const matchDate = payoutInfo?.payoutDate || br.date
-                    const dateOrders = isLinePayOfficial
+                    const dateOrders = (isLinePayOfficial || isPayuniCC)
                       ? orders.filter(o => o.recon_status !== '已入帳')
                       : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
-                    const ordersPayable = Math.round(dateOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                    const ccSel = isPayuniCC ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
+                    const selectedOrders = isPayuniCC ? dateOrders.filter(o => ccSel.has(String(o.id))) : dateOrders
+                    const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                    const ccDiff = isPayuniCC && ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
+                    const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
                     const txFeeTotal = txFeeAccRows.reduce((s, r) => s + r.fee, 0)
                     const entryChecked = bankEntryChecked.has(idx)
+                    const cardBorderColor = isPayuniCC
+                      ? (ccSel.size > 0 ? (ccMatch ? '#a8d5c2' : C.danger) : '#e0e0e0')
+                      : (entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0')
+                    const cardBg = isPayuniCC
+                      ? (ccSel.size > 0 && ccMatch ? '#f0faf5' : '#fff')
+                      : (entryChecked ? C.brandBg : isMatch ? '#f0faf5' : '#fff')
                     return (
-                      <div key={idx} style={{ border: `1.5px solid ${entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0'}`, borderRadius: 10, padding: '12px 16px', background: entryChecked ? C.brandBg : isMatch ? '#f0faf5' : '#fff' }}>
+                      <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: 10, padding: '12px 16px', background: cardBg }}>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <input type="checkbox" checked={entryChecked}
-                            onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
+                          {!isPayuniCC && (
+                            <input type="checkbox" checked={entryChecked}
+                              onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
+                          )}
                           <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
-                          {isLinePayOfficial && br.summary && (
+                          {(isLinePayOfficial || isPayuniCC) && br.summary && (
                             <span style={{ fontSize: 12, color: C.sub, fontFamily: 'monospace' }}>{br.summary}</span>
                           )}
                           {expected != null && (
@@ -1392,12 +1413,22 @@ function GatewayWorkspace({ gateway }) {
                           <span style={{ fontSize: 13 }}>
                             銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong>
                           </span>
+                          {isPayuniCC && ccSel.size > 0 && (
+                            <span style={{ fontSize: 13 }}>
+                              已選：<strong>NT$ {ordersPayable.toLocaleString()}</strong>
+                              {ccDiff != null && (
+                                <span style={{ marginLeft: 6, fontWeight: 700, color: ccMatch ? C.brand : C.danger }}>
+                                  差異：{ccDiff > 0 ? '+' : ''}{ccDiff}{ccMatch && ' ✓'}
+                                </span>
+                              )}
+                            </span>
+                          )}
                           {isLinePayOfficial && txFeeAccRows.length > 0 && (
                             <span style={{ fontSize: 13, color: C.danger }}>
                               交易處理費：<strong>-NT$ {txFeeTotal.toLocaleString()}</strong>（{txFeeAccRows.length} 筆）
                             </span>
                           )}
-                          <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>
+                          {!isPayuniCC && <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>}
                           {diff != null && (
                             <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
                               差異：{diff > 0 ? '+' : ''}{diff}
@@ -1408,13 +1439,13 @@ function GatewayWorkspace({ gateway }) {
                             <button
                               onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
                               style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
-                            >{expanded ? '收起 ▲' : `查看訂單 ▼ (${dateOrders.length})`}</button>
+                            >{expanded ? '收起 ▲' : `選取訂單 ▼ (${dateOrders.length})`}</button>
                           )}
-                          {dateOrders.length > 0 && (
+                          {(isPayuniCC ? ccSel.size > 0 : dateOrders.length > 0) && (
                             <button
                               onClick={() => confirmBankEntry(idx, br, dateOrders)}
                               style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}
-                            >確認入帳</button>
+                            >{isPayuniCC ? `確認入帳（${ccSel.size} 筆）` : '確認入帳'}</button>
                           )}
                           {bankMsg[idx] && (
                             <span style={{ fontSize: 12, color: bankMsg[idx].includes('❌') ? C.danger : C.brand }}>
@@ -1428,25 +1459,44 @@ function GatewayWorkspace({ gateway }) {
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr style={{ color: C.sub }}>
+                                  {isPayuniCC && <th style={{ padding: '4px 6px', width: 24 }}></th>}
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>
-                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>
+                                  {!isPayuniCC && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>}
+                                  {!isPayuniCC && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>}
+                                  {isPayuniCC && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>付款方式</th>}
                                   <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {dateOrders.map(o => (
-                                  <tr key={o.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                {dateOrders.map(o => {
+                                  const oChecked = isPayuniCC && ccSel.has(String(o.id))
+                                  return (
+                                  <tr key={o.id} style={{ borderBottom: '1px solid #f5f5f5', background: oChecked ? C.brandBg : 'transparent' }}>
+                                    {isPayuniCC && (
+                                      <td style={{ padding: '4px 6px' }}>
+                                        <input type="checkbox" checked={oChecked} onChange={() => {
+                                          setBankCCOrderSel(p => {
+                                            const prev = p[idx] ? new Set(p[idx]) : new Set()
+                                            prev.has(String(o.id)) ? prev.delete(String(o.id)) : prev.add(String(o.id))
+                                            return { ...p, [idx]: prev }
+                                          })
+                                        }} />
+                                      </td>
+                                    )}
                                     <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
                                     <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
-                                    <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>
-                                    <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>
+                                    {!isPayuniCC && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
+                                    {!isPayuniCC && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>}
+                                    {isPayuniCC && <td style={{ padding: '4px 6px', fontSize: 11, color: C.sub }}>{o.pay_method || '—'}</td>}
                                     <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
                                   </tr>
-                                ))}
+                                  )
+                                })}
                                 <tr style={{ borderTop: '1px solid #ddd', fontWeight: 600 }}>
-                                  <td colSpan={4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>訂單合計</td>
+                                  <td colSpan={isPayuniCC ? 4 : 4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>
+                                    {isPayuniCC ? `已選 ${ccSel.size} 筆合計` : '訂單合計'}
+                                  </td>
                                   <td style={{ padding: '6px 6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
                                 </tr>
                               </tbody>
@@ -1708,20 +1758,32 @@ function GatewayWorkspace({ gateway }) {
       {viewTxInvKey && (() => {
         const txGrpDetail = txInvoiceGroups[viewTxInvKey]
         if (!txGrpDetail) return null
+        const txAmt = parseFloat(txInvPopupAmount) || null
+        const txCheck = txAmt != null ? (Math.abs(txAmt - txGrpDetail.txFeeSum) < 0.01 ? '相符' : '有差異') : null
+        const txCheckColor = txCheck === '相符' ? C.brand : txCheck === '有差異' ? C.danger : C.sub
         const txStaticRows = [
-          ['交易處理費合計', `NT$ ${Math.round(txGrpDetail.txFeeSum * 100) / 100}`],
-          ['包含訂單', `${txGrpDetail.count} 筆`],
+          ['交易處理費發票號碼', viewTxInvKey, 'monospace'],
+          ['交易處理費合計', `NT$ ${Math.round(txGrpDetail.txFeeSum * 100) / 100}`, 'inherit'],
+          ['包含訂單', `${txGrpDetail.count} 筆`, 'inherit'],
+          ['核對結果', txCheck || '—', 'inherit'],
         ]
         const popupInp2 = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
         return (
           <div style={overlay} onClick={() => setViewTxInvKey(null)}>
-            <div style={{ ...modal, width: 360 }} onClick={e => e.stopPropagation()}>
+            <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
               <h3 style={{ marginTop: 0, fontSize: 15 }}>交易處理費發票資訊</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub, width: 130 }}>交易處理費發票號碼</td>
+                    <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>交易處理費發票號碼</td>
                     <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewTxInvKey}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>發票日期</td>
+                    <td style={{ padding: '6px 0' }}>
+                      <input type="date" value={txInvPopupDate} onChange={e => { setTxInvPopupDate(e.target.value); saveTxInvPopupDate(e.target.value) }}
+                        style={popupInp2} />
+                    </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
                     <td style={{ padding: '8px 0', color: C.sub }}>發票金額</td>
@@ -1730,10 +1792,10 @@ function GatewayWorkspace({ gateway }) {
                         onBlur={e => saveTxInvPopupAmount(e.target.value)} placeholder="0" style={popupInp2} />
                     </td>
                   </tr>
-                  {txStaticRows.map(([label, val]) => (
+                  {txStaticRows.map(([label, val, ff]) => (
                     <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '8px 0', color: C.sub, width: 130 }}>{label}</td>
-                      <td style={{ padding: '8px 0' }}>{val}</td>
+                      <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>{label}</td>
+                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? txCheckColor : '#222', fontFamily: ff }}>{val}</td>
                     </tr>
                   ))}
                   <tr>
