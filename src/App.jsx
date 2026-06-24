@@ -486,7 +486,26 @@ function GatewayWorkspace({ gateway }) {
   const [txFeeAccInDate, setTxFeeAccInDate] = useState({})
   const txFeeAccFileRef = useRef(null)
 
+  const [sopHtml, setSopHtml] = useState(() => localStorage.getItem(`sop_${gateway}`) || '')
+  const [sopEditing, setSopEditing] = useState(false)
+  const [sopLinkForm, setSopLinkForm] = useState(false)
+  const [sopLinkUrl, setSopLinkUrl] = useState('')
+  const [sopLinkText, setSopLinkText] = useState('')
+  const sopRef = useRef(null)
+  const sopSavedRange = useRef(null)
+
   useEffect(() => { loadOrders() }, [])
+  useEffect(() => {
+    setSopHtml(localStorage.getItem(`sop_${gateway}`) || '')
+    setSopEditing(false)
+    setSopLinkForm(false)
+  }, [gateway])
+  useEffect(() => {
+    if (sopEditing && sopRef.current) {
+      sopRef.current.innerHTML = sopHtml
+      sopRef.current.focus()
+    }
+  }, [sopEditing])
 
   async function loadOrders() {
     const data = await loadGatewayOrders(supabase, gateway)
@@ -555,6 +574,48 @@ function GatewayWorkspace({ gateway }) {
       setTxFeeAccInDate({})
     }
     reader.readAsArrayBuffer(f)
+  }
+
+  function saveSop() {
+    const html = sopRef.current?.innerHTML || ''
+    localStorage.setItem(`sop_${gateway}`, html)
+    setSopHtml(html)
+    setSopEditing(false)
+    setSopLinkForm(false)
+  }
+
+  function cancelSop() {
+    setSopEditing(false)
+    setSopLinkForm(false)
+  }
+
+  function openSopLinkForm() {
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      sopSavedRange.current = sel.getRangeAt(0).cloneRange()
+      setSopLinkText(sel.toString())
+    } else {
+      setSopLinkText('')
+    }
+    setSopLinkUrl('')
+    setSopLinkForm(true)
+  }
+
+  function insertSopLink() {
+    const url = sopLinkUrl.trim()
+    if (!url) { setSopLinkForm(false); return }
+    const text = sopLinkText.trim() || url
+    sopRef.current?.focus()
+    if (sopSavedRange.current) {
+      const sel = window.getSelection()
+      if (sel) { sel.removeAllRanges(); sel.addRange(sopSavedRange.current) }
+      sopSavedRange.current = null
+    }
+    document.execCommand('insertHTML', false,
+      `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1d7a5f;text-decoration:underline">${text}</a>`)
+    setSopLinkForm(false)
+    setSopLinkUrl('')
+    setSopLinkText('')
   }
 
   function toggleBankSel(idx, ordId) {
@@ -1557,6 +1618,60 @@ function GatewayWorkspace({ gateway }) {
           )}
         </Card>
       )}
+
+      {/* 教學 SOP */}
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <strong style={{ fontSize: 14 }}>教學 SOP</strong>
+          {!sopEditing
+            ? <button onClick={() => setSopEditing(true)} style={btnGhost}>編輯</button>
+            : <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={openSopLinkForm} style={btnGhost}>插入連結</button>
+                <button onClick={saveSop} style={btnPrimary}>儲存</button>
+                <button onClick={cancelSop} style={btnGhost}>取消</button>
+              </div>
+          }
+        </div>
+
+        {sopEditing && sopLinkForm && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 12px', background: C.brandBg, borderRadius: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: C.sub, flexShrink: 0 }}>插入連結</span>
+            <input value={sopLinkText} onChange={e => setSopLinkText(e.target.value)} placeholder="顯示文字" style={{ ...inp, width: 130 }} />
+            <input value={sopLinkUrl} onChange={e => setSopLinkUrl(e.target.value)} placeholder="https://..."
+              style={{ ...inp, width: 220 }} onKeyDown={e => e.key === 'Enter' && insertSopLink()} />
+            <button onClick={insertSopLink} style={btnPrimary}>插入</button>
+            <button onClick={() => setSopLinkForm(false)} style={btnGhost}>取消</button>
+          </div>
+        )}
+
+        {sopEditing ? (
+          <div
+            ref={sopRef}
+            contentEditable
+            suppressContentEditableWarning
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.execCommand('insertLineBreak') } }}
+            style={{
+              minHeight: 100, padding: '10px 12px', borderRadius: 8,
+              border: `1.5px solid ${C.brand}`, background: '#fff',
+              fontSize: 13, lineHeight: 1.75, outline: 'none',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              minHeight: 48, padding: '10px 12px', borderRadius: 8,
+              border: '1px solid #e8e8e8', background: '#fafafa',
+              fontSize: 13, lineHeight: 1.75,
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}
+            dangerouslySetInnerHTML={{
+              __html: sopHtml ||
+                '<span style="color:#bbb;font-style:italic">尚未設定 SOP，點擊右上角「編輯」開始填寫</span>'
+            }}
+          />
+        )}
+      </Card>
     </div>
   )
 }
