@@ -123,12 +123,15 @@ function ConvertPage() {
 
   async function saveToDb() {
     if (!orders.length) return
-    const rows = orders.map((o) => ({
-      platform: o.platform, ref_no: o.ref_no, order_date: String(o.order_date || ''),
-      contact: o.contact, address: o.address, phone: String(o.phone || ''), email: o.email,
-      pay_method: o.pay_method, note: o.note, store: o.store, pkg_count: o.pkg_count || 1,
-      tracking_no: String(o.tracking_no || ''), total: o.total || 0, shipping_fee: o.shipping_fee || 0, discount: o.discount ?? null,
-    }))
+    const seen = new Set()
+    const rows = orders
+      .filter(o => { if (seen.has(o.ref_no)) return false; seen.add(o.ref_no); return true })
+      .map((o) => ({
+        platform: o.platform, ref_no: o.ref_no, order_date: String(o.order_date || ''),
+        contact: o.contact, address: o.address, phone: String(o.phone || ''), email: o.email,
+        pay_method: o.pay_method, note: o.note, store: o.store, pkg_count: o.pkg_count || 1,
+        tracking_no: String(o.tracking_no || ''), total: o.total || 0, shipping_fee: o.shipping_fee || 0, discount: o.discount ?? null,
+      }))
     const { error } = await supabase.from('shipping_orders').upsert(rows, { onConflict: 'platform,ref_no' })
     if (error) { setMsg(`存檔失敗：${error.message}`); return }
     // 只對真正新增的訂單（recon_status 還是 null）才設「已出貨」，不蓋既有對帳狀態
