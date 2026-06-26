@@ -509,8 +509,9 @@ function GatewayWorkspace({ gateway }) {
   const [txFeeAccInDate, setTxFeeAccInDate] = useState({})
   const txFeeAccFileRef = useRef(null)
 
-  const [sopHtml, setSopHtml] = useState(() => localStorage.getItem(`sop_${gateway}`) || '')
+  const [sopHtml, setSopHtml] = useState('')
   const [sopEditing, setSopEditing] = useState(false)
+  const [sopSaving, setSopSaving] = useState(false)
   const [sopLinkForm, setSopLinkForm] = useState(false)
   const [sopLinkUrl, setSopLinkUrl] = useState('')
   const [sopLinkText, setSopLinkText] = useState('')
@@ -539,9 +540,11 @@ function GatewayWorkspace({ gateway }) {
     }
   }, [viewTxInvKey])
   useEffect(() => {
-    setSopHtml(localStorage.getItem(`sop_${gateway}`) || '')
+    setSopHtml('')
     setSopEditing(false)
     setSopLinkForm(false)
+    supabase.from('gateway_sops').select('html_content').eq('gateway', gateway).maybeSingle()
+      .then(({ data }) => setSopHtml(data?.html_content || ''))
   }, [gateway])
   useEffect(() => {
     if (sopEditing && sopRef.current) {
@@ -631,10 +634,13 @@ function GatewayWorkspace({ gateway }) {
     reader.readAsArrayBuffer(f)
   }
 
-  function saveSop() {
+  async function saveSop() {
     const html = sopRef.current?.innerHTML || ''
-    localStorage.setItem(`sop_${gateway}`, html)
+    setSopSaving(true)
+    await supabase.from('gateway_sops')
+      .upsert({ gateway, html_content: html, updated_at: new Date().toISOString() }, { onConflict: 'gateway' })
     setSopHtml(html)
+    setSopSaving(false)
     setSopEditing(false)
     setSopLinkForm(false)
   }
@@ -2013,7 +2019,7 @@ function GatewayWorkspace({ gateway }) {
             ? <button onClick={() => setSopEditing(true)} style={btnGhost}>編輯</button>
             : <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={openSopLinkForm} style={btnGhost}>插入連結</button>
-                <button onClick={saveSop} style={btnPrimary}>儲存</button>
+                <button onClick={saveSop} disabled={sopSaving} style={btnPrimary}>{sopSaving ? '儲存中…' : '儲存'}</button>
                 <button onClick={cancelSop} style={btnGhost}>取消</button>
               </div>
           }
