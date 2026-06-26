@@ -97,11 +97,17 @@ export async function reconcile(supabase, gateway, parsedRows) {
 
     const fee_total = row.fee != null ? row.fee : 0
     const payable = row.payable != null ? row.payable : 0
-    const actual_in = row.actual_in != null ? row.actual_in : null
-    const in_date = row.in_date || null
-    const recon_status = actual_in != null ? '已入帳' : '平台已結算'
 
-    const updates = { fee_total, payable, actual_in, in_date, recon_status }
+    // 只有報表本身含實際入帳金額（蝦皮）才回填 actual_in / in_date / 狀態改已入帳
+    // 其他金流（CC / LINE Pay）入帳日只能從銀行對帳單確認後寫入，不從撥款報表覆蓋
+    const updates = { fee_total, payable }
+    if (row.actual_in != null) {
+      updates.actual_in = row.actual_in
+      updates.in_date = row.in_date || null
+      updates.recon_status = '已入帳'
+    } else if (order.recon_status !== '已入帳' && order.recon_status !== '已對帳') {
+      updates.recon_status = '平台已結算'
+    }
     if (row.tx_code !== undefined) updates.tx_code = row.tx_code ?? null
     if (row.tx_fee !== undefined) updates.tx_fee = row.tx_fee ?? null
 
