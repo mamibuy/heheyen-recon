@@ -1404,6 +1404,7 @@ function GatewayWorkspace({ gateway }) {
                     const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
                     const txFeeTotal = txFeeAccRows.reduce((s, r) => s + r.fee, 0)
                     const entryChecked = bankEntryChecked.has(idx)
+                    const isDone = !!bankMsg[idx]?.startsWith('✓')
                     const cardBorderColor = isManualSelection
                       ? (ccSel.size > 0 ? (ccMatch ? '#a8d5c2' : C.danger) : '#e0e0e0')
                       : (entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0')
@@ -1413,15 +1414,15 @@ function GatewayWorkspace({ gateway }) {
                     return (
                       <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: 10, padding: '12px 16px', background: cardBg }}>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                          {!isPayuniCC && (
+                          {!isPayuniCC && !isDone && (
                             <input type="checkbox" checked={entryChecked}
                               onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
                           )}
                           <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
-                          {(isLinePayOfficial || isPayuniCC) && br.summary && (
+                          {!isDone && (isLinePayOfficial || isPayuniCC) && br.summary && (
                             <span style={{ fontSize: 12, color: C.sub, fontFamily: 'monospace' }}>{br.summary}</span>
                           )}
-                          {expected != null && (
+                          {!isDone && expected != null && (
                             <span style={{ fontSize: 13, color: C.sub }}>
                               {isLanxin ? '蘭新預計撥款：' : 'LINE Pay 預計：'}<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）{payoutInfo.payoutDate && isLanxin && <span style={{ fontSize: 11, marginLeft: 4 }}>撥款日 {payoutInfo.payoutDate}</span>}
                             </span>
@@ -1429,7 +1430,7 @@ function GatewayWorkspace({ gateway }) {
                           <span style={{ fontSize: 13 }}>
                             銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong>
                           </span>
-                          {isManualSelection && ccSel.size > 0 && (
+                          {!isDone && isManualSelection && ccSel.size > 0 && (
                             <span style={{ fontSize: 13 }}>
                               已選：<strong>NT$ {ordersPayable.toLocaleString()}</strong>
                               {ccDiff != null && (
@@ -1439,38 +1440,38 @@ function GatewayWorkspace({ gateway }) {
                               )}
                             </span>
                           )}
-                          {isLinePayOfficial && txFeeAccRows.length > 0 && (
+                          {!isDone && isLinePayOfficial && txFeeAccRows.length > 0 && (
                             <span style={{ fontSize: 13, color: C.danger }}>
                               交易處理費：<strong>-NT$ {txFeeTotal.toLocaleString()}</strong>（{txFeeAccRows.length} 筆）
                             </span>
                           )}
-                          {!isManualSelection && <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>}
-                          {diff != null && (
+                          {!isDone && !isManualSelection && <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>}
+                          {!isDone && diff != null && (
                             <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
                               差異：{diff > 0 ? '+' : ''}{diff}
                               {isMatch && ' ✓'}
                             </span>
                           )}
-                          {dateOrders.length > 0 && (
+                          {!isDone && dateOrders.length > 0 && (
                             <button
                               onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
                               style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
                             >{expanded ? '收起 ▲' : `選取訂單 ▼ (${dateOrders.length})`}</button>
                           )}
-                          {(isManualSelection ? ccSel.size > 0 : dateOrders.length > 0) && (
+                          {!isDone && (isManualSelection ? ccSel.size > 0 : dateOrders.length > 0) && (
                             <button
                               onClick={() => confirmBankEntry(idx, br, dateOrders)}
                               style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}
                             >{isManualSelection ? `確認入帳（${ccSel.size} 筆）` : '確認入帳'}</button>
                           )}
                           {bankMsg[idx] && (
-                            <span style={{ fontSize: 12, color: bankMsg[idx].includes('❌') ? C.danger : C.brand }}>
+                            <span style={{ fontSize: 12, marginLeft: 'auto', color: bankMsg[idx].includes('❌') ? C.danger : C.brand }}>
                               {bankMsg[idx]}
                             </span>
                           )}
                         </div>
 
-                        {expanded && dateOrders.length > 0 && (
+                        {!isDone && expanded && dateOrders.length > 0 && (
                           <div style={{ marginTop: 10, borderTop: '1px solid #f0f0f0', paddingTop: 10 }}>
                             <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
