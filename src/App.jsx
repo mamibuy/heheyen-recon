@@ -448,6 +448,7 @@ function GatewayWorkspace({ gateway }) {
   const [editMsg, setEditMsg] = useState('')
   const [viewInvKey, setViewInvKey] = useState(null)
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
+  const [viewBankGroupKey, setViewBankGroupKey] = useState(null)
   const [invNote, setInvNote] = useState('')
   const [txInvNote, setTxInvNote] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState(null)
@@ -1070,7 +1071,8 @@ function GatewayWorkspace({ gateway }) {
   if (showBankGroup) shownOrders.forEach(o => {
     if (o.recon_status !== '已入帳' || !o.in_date) return
     const k = o.in_date.slice(0, 10)
-    if (!bankGroups[k]) bankGroups[k] = { bankDeposit: o.bank_deposit ?? null, count: 0 }
+    if (!bankGroups[k]) bankGroups[k] = { bankDeposit: o.bank_deposit ?? null, payableSum: 0, count: 0 }
+    bankGroups[k].payableSum += o.payable || 0
     bankGroups[k].count++
   })
 
@@ -1226,14 +1228,14 @@ function GatewayWorkspace({ gateway }) {
                       <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
                       <td style={td}>
                         {isFirstBankGroup && bankGrp ? (
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 12 }}>{bankGroupKey}</div>
+                          <div style={{ cursor: 'pointer' }} onClick={() => setViewBankGroupKey(bankGroupKey)}>
+                            <div style={{ fontWeight: 600, fontSize: 12, color: C.brand, textDecoration: 'underline' }}>{bankGroupKey}</div>
                             <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
                               {bankGrp.count} 筆・合計 {bankGrp.bankDeposit != null ? Math.round(bankGrp.bankDeposit * 100) / 100 : '—'}
                             </div>
                           </div>
                         ) : bankGroupKey ? (
-                          <span style={{ fontSize: 11, color: C.sub }}>↑</span>
+                          <span style={{ fontSize: 11, color: C.sub, cursor: 'pointer' }} onClick={() => setViewBankGroupKey(bankGroupKey)}>↑</span>
                         ) : o.in_date || '—'}
                       </td>
                       <td style={td}>
@@ -1965,6 +1967,74 @@ function GatewayWorkspace({ gateway }) {
                   </div>
                 )}
                 <button onClick={() => setViewTxInvKey(null)} style={btnGhost}>關閉</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* 入帳群組細節 modal */}
+      {viewBankGroupKey && showBankGroup && (() => {
+        const bgOrders = orders.filter(o => o.recon_status === '已入帳' && (o.in_date || '').slice(0, 10) === viewBankGroupKey)
+        const payableSum = Math.round(bgOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+        const bankDeposit = bgOrders[0]?.bank_deposit ?? null
+        const diff = bankDeposit != null ? Math.round((bankDeposit - payableSum) * 100) / 100 : null
+        const rowStyle = { borderBottom: '1px solid #f0f0f0' }
+        const labelStyle = { padding: '8px 0', color: C.sub, width: 110, verticalAlign: 'top' }
+        const valStyle = { padding: '8px 0' }
+        return (
+          <div style={overlay} onClick={() => setViewBankGroupKey(null)}>
+            <div style={{ ...modal, width: 420 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>入帳細節</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <tbody>
+                  <tr style={rowStyle}>
+                    <td style={labelStyle}>入帳日</td>
+                    <td style={{ ...valStyle, fontWeight: 600 }}>{viewBankGroupKey}</td>
+                  </tr>
+                  <tr style={rowStyle}>
+                    <td style={labelStyle}>玉山實際入帳</td>
+                    <td style={{ ...valStyle, fontWeight: 600 }}>
+                      {bankDeposit != null ? `NT$ ${bankDeposit.toLocaleString()}` : '—'}
+                    </td>
+                  </tr>
+                  <tr style={rowStyle}>
+                    <td style={labelStyle}>應入帳合計</td>
+                    <td style={valStyle}>NT$ {payableSum.toLocaleString()}</td>
+                  </tr>
+                  {diff != null && (
+                    <tr style={rowStyle}>
+                      <td style={labelStyle}>差額</td>
+                      <td style={{ ...valStyle, fontWeight: 600, color: Math.abs(diff) < 0.01 ? C.brand : C.danger }}>
+                        {diff === 0 ? '相符' : `${diff > 0 ? '+' : ''}${diff}`}
+                      </td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td style={{ ...labelStyle, borderBottom: 'none' }}>包含訂單</td>
+                    <td style={{ ...valStyle, borderBottom: 'none' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 2 }}>
+                        <thead>
+                          <tr style={{ background: '#f8f8f8' }}>
+                            <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 500, color: C.sub }}>訂單編號</th>
+                            <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 500, color: C.sub }}>應入帳</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bgOrders.map(o => (
+                            <tr key={o.id} style={{ borderTop: '1px solid #f0f0f0' }}>
+                              <td style={{ padding: '4px 6px', fontFamily: 'monospace', fontSize: 11 }}>{o.ref_no}</td>
+                              <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString() ?? '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+                <button onClick={() => setViewBankGroupKey(null)} style={btnGhost}>關閉</button>
               </div>
             </div>
           </div>
