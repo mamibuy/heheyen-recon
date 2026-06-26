@@ -424,6 +424,7 @@ function GatewayWorkspace({ gateway }) {
   const isLineMallLinePay = gateway === 'linepay'
   const isLanxin = gateway === 'lanxin'
   const isPayuniCC = gateway === 'payuni_cc'
+  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
   const [rows1, setRows1] = useState(null)
@@ -681,7 +682,7 @@ function GatewayWorkspace({ gateway }) {
   }
 
   async function confirmBankEntry(idx, br, dateOrders) {
-    const ordersToUpdate = isPayuniCC
+    const ordersToUpdate = isManualSelection
       ? dateOrders.filter(o => bankCCOrderSel[idx]?.has(String(o.id)))
       : dateOrders
     if (ordersToUpdate.length === 0) return
@@ -702,7 +703,7 @@ function GatewayWorkspace({ gateway }) {
           return n
         })
       }
-      setBankMsg(p => ({ ...p, [idx]: `✓ 已回填 ${dateOrders.length} 筆` }))
+      setBankMsg(p => ({ ...p, [idx]: `✓ 已回填 ${ordersToUpdate.length} 筆` }))
       await loadOrders()
     } else {
       setBankMsg(p => ({ ...p, [idx]: '❌ 寫入失敗' }))
@@ -1307,10 +1308,10 @@ function GatewayWorkspace({ gateway }) {
             })
             const hasPayoutMap = Object.keys(linepayByDate).length > 0
 
-            // payuniCC: 已在 readBankFile 篩過，直接顯示全部
-            // isLinePayOfficial: 只篩摘要含 ＰＡＹＵＮｉ 的玉山入帳
-            // 其他金流: 以撥款報表日期過濾
-            const displayRows = (isPayuniCC || isLinePayOfficial)
+            // payuniCC / LINE Pay / 蘭新: 手動選取訂單，直接顯示全部銀行入帳
+            // isLinePayOfficial: 已篩帳號，直接顯示全部
+            // 其他金流（若未來新增）: 以撥款報表日期過濾
+            const displayRows = (isManualSelection || isLinePayOfficial)
               ? bankRows
               : hasPayoutMap
                 ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
@@ -1354,17 +1355,17 @@ function GatewayWorkspace({ gateway }) {
 
             return (
               <div style={{ marginTop: 14 }}>
-                {!isLinePayOfficial && !hasPayoutMap && (
+                {!isLinePayOfficial && !isManualSelection && !hasPayoutMap && (
                   <p style={{ fontSize: 12, color: C.warn, margin: '0 0 10px' }}>
-                    ⚠ 尚未上傳 LINE Pay 撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
+                    ⚠ 尚未上傳撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
                   </p>
                 )}
-                {!isLinePayOfficial && hasPayoutMap && displayRows.length === 0 && (
+                {!isLinePayOfficial && !isManualSelection && hasPayoutMap && displayRows.length === 0 && (
                   <p style={{ fontSize: 12, color: C.danger, margin: '0 0 10px' }}>
                     ⚠ 撥款日期未對到銀行入帳日。撥款報表日期：{Object.keys(linepayByDate).slice(0, 5).join('、')}；銀行對帳單日期：{bankRows.slice(0, 5).map(r => r.date).join('、')}
                   </p>
                 )}
-                {!isPayuniCC && (
+                {!isManualSelection && (
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
                     <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                       <input type="checkbox" checked={allChecked}
@@ -1386,20 +1387,20 @@ function GatewayWorkspace({ gateway }) {
                     const isMatch = diff != null && Math.abs(diff) <= 2
                     const expanded = !!bankExpanded[idx]
                     const matchDate = payoutInfo?.payoutDate || br.date
-                    const dateOrders = (isLinePayOfficial || isPayuniCC)
+                    const dateOrders = (isLinePayOfficial || isManualSelection)
                       ? orders.filter(o => o.recon_status !== '已入帳')
                       : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
-                    const ccSel = isPayuniCC ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
-                    const selectedOrders = isPayuniCC ? dateOrders.filter(o => ccSel.has(String(o.id))) : dateOrders
+                    const ccSel = isManualSelection ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
+                    const selectedOrders = isManualSelection ? dateOrders.filter(o => ccSel.has(String(o.id))) : dateOrders
                     const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
-                    const ccDiff = isPayuniCC && ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
+                    const ccDiff = isManualSelection && ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
                     const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
                     const txFeeTotal = txFeeAccRows.reduce((s, r) => s + r.fee, 0)
                     const entryChecked = bankEntryChecked.has(idx)
-                    const cardBorderColor = isPayuniCC
+                    const cardBorderColor = isManualSelection
                       ? (ccSel.size > 0 ? (ccMatch ? '#a8d5c2' : C.danger) : '#e0e0e0')
                       : (entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0')
-                    const cardBg = isPayuniCC
+                    const cardBg = isManualSelection
                       ? (ccSel.size > 0 && ccMatch ? '#f0faf5' : '#fff')
                       : (entryChecked ? C.brandBg : isMatch ? '#f0faf5' : '#fff')
                     return (
@@ -1421,7 +1422,7 @@ function GatewayWorkspace({ gateway }) {
                           <span style={{ fontSize: 13 }}>
                             銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong>
                           </span>
-                          {isPayuniCC && ccSel.size > 0 && (
+                          {isManualSelection && ccSel.size > 0 && (
                             <span style={{ fontSize: 13 }}>
                               已選：<strong>NT$ {ordersPayable.toLocaleString()}</strong>
                               {ccDiff != null && (
@@ -1436,7 +1437,7 @@ function GatewayWorkspace({ gateway }) {
                               交易處理費：<strong>-NT$ {txFeeTotal.toLocaleString()}</strong>（{txFeeAccRows.length} 筆）
                             </span>
                           )}
-                          {!isPayuniCC && <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>}
+                          {!isManualSelection && <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>}
                           {diff != null && (
                             <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
                               差異：{diff > 0 ? '+' : ''}{diff}
@@ -1449,11 +1450,11 @@ function GatewayWorkspace({ gateway }) {
                               style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
                             >{expanded ? '收起 ▲' : `選取訂單 ▼ (${dateOrders.length})`}</button>
                           )}
-                          {(isPayuniCC ? ccSel.size > 0 : dateOrders.length > 0) && (
+                          {(isManualSelection ? ccSel.size > 0 : dateOrders.length > 0) && (
                             <button
                               onClick={() => confirmBankEntry(idx, br, dateOrders)}
                               style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}
-                            >{isPayuniCC ? `確認入帳（${ccSel.size} 筆）` : '確認入帳'}</button>
+                            >{isManualSelection ? `確認入帳（${ccSel.size} 筆）` : '確認入帳'}</button>
                           )}
                           {bankMsg[idx] && (
                             <span style={{ fontSize: 12, color: bankMsg[idx].includes('❌') ? C.danger : C.brand }}>
@@ -1468,21 +1469,21 @@ function GatewayWorkspace({ gateway }) {
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr style={{ color: C.sub }}>
-                                  {isPayuniCC && <th style={{ padding: '4px 6px', width: 24 }}></th>}
+                                  {isManualSelection && <th style={{ padding: '4px 6px', width: 24 }}></th>}
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                  {!isPayuniCC && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>}
-                                  {!isPayuniCC && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>}
-                                  {isPayuniCC && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>付款方式</th>}
+                                  {!isManualSelection && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>}
+                                  {!isManualSelection && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>}
+                                  {isManualSelection && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>付款方式</th>}
                                   <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {dateOrders.map(o => {
-                                  const oChecked = isPayuniCC && ccSel.has(String(o.id))
+                                  const oChecked = isManualSelection && ccSel.has(String(o.id))
                                   return (
                                   <tr key={o.id} style={{ borderBottom: '1px solid #f5f5f5', background: oChecked ? C.brandBg : 'transparent' }}>
-                                    {isPayuniCC && (
+                                    {isManualSelection && (
                                       <td style={{ padding: '4px 6px' }}>
                                         <input type="checkbox" checked={oChecked} onChange={() => {
                                           setBankCCOrderSel(p => {
@@ -1495,16 +1496,16 @@ function GatewayWorkspace({ gateway }) {
                                     )}
                                     <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
                                     <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
-                                    {!isPayuniCC && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
-                                    {!isPayuniCC && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>}
-                                    {isPayuniCC && <td style={{ padding: '4px 6px', fontSize: 11, color: C.sub }}>{o.pay_method || '—'}</td>}
+                                    {!isManualSelection && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
+                                    {!isManualSelection && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>}
+                                    {isManualSelection && <td style={{ padding: '4px 6px', fontSize: 11, color: C.sub }}>{o.pay_method || '—'}</td>}
                                     <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
                                   </tr>
                                   )
                                 })}
                                 <tr style={{ borderTop: '1px solid #ddd', fontWeight: 600 }}>
-                                  <td colSpan={isPayuniCC ? 4 : 4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>
-                                    {isPayuniCC ? `已選 ${ccSel.size} 筆合計` : '訂單合計'}
+                                  <td colSpan={isManualSelection ? 4 : 4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>
+                                    {isManualSelection ? `已選 ${ccSel.size} 筆合計` : '訂單合計'}
                                   </td>
                                   <td style={{ padding: '6px 6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
                                 </tr>
