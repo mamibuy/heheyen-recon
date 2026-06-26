@@ -594,7 +594,7 @@ function GatewayWorkspace({ gateway }) {
         .filter(r => {
           if (isPayuniCC) return String(r[ci.summary] || '').includes('ＰＡＹＵ')
           const a = String(r[ci.account] || '')
-          if (isLineMallLinePay) return a.includes('387/0000000060558379')
+          if (isLineMallLinePay) return a.includes('387/0000000060558379') || a.includes('808/1229940024585')
           if (isLanxin) return a.includes('008/0000158100035101')
           if (isLinePayOfficial) return a.includes('808/1229940024585')
           return false
