@@ -1464,6 +1464,7 @@ function GatewayWorkspace({ gateway }) {
 
                         {expanded && dateOrders.length > 0 && (
                           <div style={{ marginTop: 10, borderTop: '1px solid #f0f0f0', paddingTop: 10 }}>
+                            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr style={{ color: C.sub }}>
@@ -1509,6 +1510,7 @@ function GatewayWorkspace({ gateway }) {
                                 </tr>
                               </tbody>
                             </table>
+                            </div>
                             {isLinePayOfficial && txFeeAccRows.length > 0 && (
                               <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
                                 <thead>
