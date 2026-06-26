@@ -1064,6 +1064,16 @@ function GatewayWorkspace({ gateway }) {
   let _ci = 0
   Object.keys(invoiceGroups).forEach(k => { invColorIdx[k] = _ci++ % 2 })
 
+  // 入帳群組：依 in_date 彙總已入帳訂單
+  const bankGroups = {}
+  shownOrders.forEach(o => {
+    if (o.recon_status !== '已入帳' || !o.in_date) return
+    const k = o.in_date.slice(0, 10)
+    if (!bankGroups[k]) bankGroups[k] = { payableSum: 0, count: 0 }
+    bankGroups[k].payableSum += o.payable || 0
+    bankGroups[k].count++
+  })
+
   const invFeeSum = invPreview?.feeSum ?? (invMethod === 'manual' ? manualFeeSum : null)
   const invAmountNum = parseFloat(invAmount) || 0
   const invDiff = invAmountNum > 0 && invFeeSum != null ? Math.round((invAmountNum - invFeeSum) * 100) / 100 : null
@@ -1178,6 +1188,7 @@ function GatewayWorkspace({ gateway }) {
               {(() => {
                 const seenInv = new Set()
                 const seenTxInv = new Set()
+                const seenBankGroup = new Set()
                 return shownOrders.map((o, i) => {
                   const invBg = o.fee_invoice_no ? INV_BG[invColorIdx[o.fee_invoice_no]] : undefined
                   const rowBg = selectedIds.has(o.id) ? C.brandBg : invBg
@@ -1187,6 +1198,10 @@ function GatewayWorkspace({ gateway }) {
                   const isFirstTxInv = o.tx_fee_invoice_no && !seenTxInv.has(o.tx_fee_invoice_no)
                   if (o.tx_fee_invoice_no) seenTxInv.add(o.tx_fee_invoice_no)
                   const txGrp = o.tx_fee_invoice_no ? txInvoiceGroups[o.tx_fee_invoice_no] : null
+                  const bankGroupKey = (o.recon_status === '已入帳' && o.in_date) ? o.in_date.slice(0, 10) : null
+                  const isFirstBankGroup = bankGroupKey && !seenBankGroup.has(bankGroupKey)
+                  if (bankGroupKey) seenBankGroup.add(bankGroupKey)
+                  const bankGrp = bankGroupKey ? bankGroups[bankGroupKey] : null
                   return (
                     <tr key={i} style={{ background: rowBg }}>
                       <td style={td}>
@@ -1209,7 +1224,18 @@ function GatewayWorkspace({ gateway }) {
                       <td style={{ ...td, textAlign: 'right' }}>{o.tx_fee != null ? o.tx_fee.toLocaleString() : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
-                      <td style={td}>{o.in_date || '—'}</td>
+                      <td style={td}>
+                        {isFirstBankGroup && bankGrp ? (
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 12 }}>{bankGroupKey}</div>
+                            <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
+                              {bankGrp.count} 筆・合計 {Math.round(bankGrp.payableSum * 100) / 100}
+                            </div>
+                          </div>
+                        ) : bankGroupKey ? (
+                          <span style={{ fontSize: 11, color: C.sub }}>↑</span>
+                        ) : o.in_date || '—'}
+                      </td>
                       <td style={td}>
                         <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
                           background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
