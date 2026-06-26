@@ -698,7 +698,7 @@ function GatewayWorkspace({ gateway }) {
     for (const o of ordersToUpdate) {
       const { error } = await supabase
         .from('shipping_orders')
-        .update({ in_date: br.date, actual_in: o.payable, recon_status: '已入帳' })
+        .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' })
         .eq('id', o.id)
       if (error) { hasErr = true; break }
     }
@@ -1070,8 +1070,7 @@ function GatewayWorkspace({ gateway }) {
   if (showBankGroup) shownOrders.forEach(o => {
     if (o.recon_status !== '已入帳' || !o.in_date) return
     const k = o.in_date.slice(0, 10)
-    if (!bankGroups[k]) bankGroups[k] = { payableSum: 0, count: 0 }
-    bankGroups[k].payableSum += o.payable || 0
+    if (!bankGroups[k]) bankGroups[k] = { bankDeposit: o.bank_deposit ?? null, count: 0 }
     bankGroups[k].count++
   })
 
@@ -1230,7 +1229,7 @@ function GatewayWorkspace({ gateway }) {
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 12 }}>{bankGroupKey}</div>
                             <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
-                              {bankGrp.count} 筆・合計 {Math.round(bankGrp.payableSum * 100) / 100}
+                              {bankGrp.count} 筆・合計 {bankGrp.bankDeposit != null ? Math.round(bankGrp.bankDeposit * 100) / 100 : '—'}
                             </div>
                           </div>
                         ) : bankGroupKey ? (
@@ -1430,7 +1429,7 @@ function GatewayWorkspace({ gateway }) {
                     })()
                 for (const o of dateOrders) {
                   const { error } = await supabase.from('shipping_orders')
-                    .update({ in_date: br.date, actual_in: o.payable, recon_status: '已入帳' }).eq('id', o.id)
+                    .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
                   if (error) { hasErr = true; break }
                 }
                 if (!hasErr) {
