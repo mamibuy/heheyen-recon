@@ -1393,9 +1393,10 @@ function GatewayWorkspace({ gateway }) {
                     const isMatch = diff != null && Math.abs(diff) <= 2
                     const expanded = !!bankExpanded[idx]
                     const matchDate = payoutInfo?.payoutDate || br.date
-                    const dateOrders = (isLinePayOfficial || isManualSelection)
+                    const dateOrders = ((isLinePayOfficial || isManualSelection)
                       ? orders.filter(o => o.recon_status !== '已入帳')
                       : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                    ).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
                     const ccSel = isManualSelection ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
                     const selectedOrders = isManualSelection ? dateOrders.filter(o => ccSel.has(String(o.id))) : dateOrders
                     const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
