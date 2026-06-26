@@ -424,7 +424,7 @@ function GatewayWorkspace({ gateway }) {
   const isLineMallLinePay = gateway === 'linepay'
   const isLanxin = gateway === 'lanxin'
   const isPayuniCC = gateway === 'payuni_cc'
-  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin
+  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin || isLinePayOfficial
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
   const [rows1, setRows1] = useState(null)
@@ -1483,9 +1483,9 @@ function GatewayWorkspace({ gateway }) {
                                   {isManualSelection && <th style={{ padding: '4px 6px', width: 24 }}></th>}
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
                                   <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                  {!isManualSelection && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>}
-                                  {!isManualSelection && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>}
-                                  {isManualSelection && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>付款方式</th>}
+                                  {isLinePayOfficial && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>}
+                                  {isLinePayOfficial && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>}
+                                  {isManualSelection && !isLinePayOfficial && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>付款方式</th>}
                                   <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
                                 </tr>
                               </thead>
@@ -1507,15 +1507,15 @@ function GatewayWorkspace({ gateway }) {
                                     )}
                                     <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
                                     <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
-                                    {!isManualSelection && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
-                                    {!isManualSelection && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>}
-                                    {isManualSelection && <td style={{ padding: '4px 6px', fontSize: 11, color: C.sub }}>{o.pay_method || '—'}</td>}
+                                    {isLinePayOfficial && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
+                                    {isLinePayOfficial && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>}
+                                    {isManualSelection && !isLinePayOfficial && <td style={{ padding: '4px 6px', fontSize: 11, color: C.sub }}>{o.pay_method || '—'}</td>}
                                     <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
                                   </tr>
                                   )
                                 })}
                                 <tr style={{ borderTop: '1px solid #ddd', fontWeight: 600 }}>
-                                  <td colSpan={isManualSelection ? 4 : 4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>
+                                  <td colSpan={isLinePayOfficial ? 5 : 4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>
                                     {isManualSelection ? `已選 ${ccSel.size} 筆合計` : '訂單合計'}
                                   </td>
                                   <td style={{ padding: '6px 6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
