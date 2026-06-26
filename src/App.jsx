@@ -960,6 +960,9 @@ function GatewayWorkspace({ gateway }) {
         order_invoice_no: updates.order_invoice_no || null,
         fee_invoice_no: updates.fee_invoice_no || null,
         tx_fee_invoice_no: updates.tx_fee_invoice_no || null,
+        payable: updates.payable !== '' && updates.payable != null ? parseFloat(updates.payable) : null,
+        actual_in: updates.actual_in !== '' && updates.actual_in != null ? parseFloat(updates.actual_in) : null,
+        in_date: updates.in_date || null,
       })
       .eq('id', updates.id)
     if (error) { setEditMsg('錯誤：' + error.message); return }
@@ -1666,6 +1669,17 @@ function GatewayWorkspace({ gateway }) {
                   placeholder="AB-12345678" style={inp} />
               </Field>
             )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Field label="應入帳">
+                <input type="number" value={editOrder.payable ?? ''} onChange={e => setEditOrder(p => ({ ...p, payable: e.target.value }))} style={inp} />
+              </Field>
+              <Field label="實際入帳">
+                <input type="number" value={editOrder.actual_in ?? ''} onChange={e => setEditOrder(p => ({ ...p, actual_in: e.target.value }))} style={inp} />
+              </Field>
+              <Field label="入帳日">
+                <input type="date" value={editOrder.in_date || ''} onChange={e => setEditOrder(p => ({ ...p, in_date: e.target.value }))} style={inp} />
+              </Field>
+            </div>
             <Field label="備註">
               <textarea value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
             </Field>
