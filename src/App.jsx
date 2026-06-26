@@ -1667,7 +1667,7 @@ function GatewayWorkspace({ gateway }) {
               </Field>
             )}
             <Field label="備註">
-              <input value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} style={inp} />
+              <textarea value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
             </Field>
             {editMsg && <p style={{ fontSize: 13, color: editMsg.includes('錯誤') ? C.danger : C.sub, margin: '4px 0' }}>{editMsg}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
