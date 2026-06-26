@@ -441,7 +441,7 @@ function GatewayWorkspace({ gateway }) {
   const [filterMonth, setFilterMonth] = useState('')
   const [onlyDiff, setOnlyDiff] = useState(false)
   const [sortCol, setSortCol] = useState('order_date')
-  const [sortDir, setSortDir] = useState('desc')
+  const [sortDir, setSortDir] = useState('asc')
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [deleteMsg, setDeleteMsg] = useState('')
   const [editOrder, setEditOrder] = useState(null)
@@ -1163,7 +1163,7 @@ function GatewayWorkspace({ gateway }) {
             <button onClick={exportOrders} style={btnPrimary}>匯出</button>
           </div>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '60vh' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
             <thead>
               <tr>
@@ -2243,7 +2243,7 @@ const inp = { padding: '7px 10px', borderRadius: 8, border: `1px solid ${C.line}
 const btnPrimary = { padding: '8px 16px', borderRadius: 8, border: 'none', background: C.brand, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }
 const btnGhost = { padding: '8px 16px', borderRadius: 8, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontSize: 14, cursor: 'pointer' }
 const miniBtn = { padding: '4px 8px', borderRadius: 6, border: 'none', background: 'transparent', color: C.brand, fontSize: 13, cursor: 'pointer' }
-const th = { textAlign: 'left', padding: '8px 10px', borderBottom: `2px solid ${C.line}`, color: C.sub, fontWeight: 600, whiteSpace: 'nowrap' }
+const th = { textAlign: 'left', padding: '8px 10px', borderBottom: `2px solid ${C.line}`, color: C.sub, fontWeight: 600, whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }
 const td = { padding: '7px 10px', borderBottom: `1px solid ${C.line}`, whiteSpace: 'nowrap' }
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }
 const modal = { background: '#fff', borderRadius: 14, padding: 24, width: 480, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }
