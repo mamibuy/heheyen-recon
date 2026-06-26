@@ -1064,9 +1064,10 @@ function GatewayWorkspace({ gateway }) {
   let _ci = 0
   Object.keys(invoiceGroups).forEach(k => { invColorIdx[k] = _ci++ % 2 })
 
-  // 入帳群組：依 in_date 彙總已入帳訂單
+  // 入帳群組：依 in_date 彙總已入帳訂單（僅官網>LINE Pay / 官網>信用卡）
+  const showBankGroup = isLinePayOfficial || isPayuniCC
   const bankGroups = {}
-  shownOrders.forEach(o => {
+  if (showBankGroup) shownOrders.forEach(o => {
     if (o.recon_status !== '已入帳' || !o.in_date) return
     const k = o.in_date.slice(0, 10)
     if (!bankGroups[k]) bankGroups[k] = { payableSum: 0, count: 0 }
@@ -1198,7 +1199,7 @@ function GatewayWorkspace({ gateway }) {
                   const isFirstTxInv = o.tx_fee_invoice_no && !seenTxInv.has(o.tx_fee_invoice_no)
                   if (o.tx_fee_invoice_no) seenTxInv.add(o.tx_fee_invoice_no)
                   const txGrp = o.tx_fee_invoice_no ? txInvoiceGroups[o.tx_fee_invoice_no] : null
-                  const bankGroupKey = (o.recon_status === '已入帳' && o.in_date) ? o.in_date.slice(0, 10) : null
+                  const bankGroupKey = (showBankGroup && o.recon_status === '已入帳' && o.in_date) ? o.in_date.slice(0, 10) : null
                   const isFirstBankGroup = bankGroupKey && !seenBankGroup.has(bankGroupKey)
                   if (bankGroupKey) seenBankGroup.add(bankGroupKey)
                   const bankGrp = bankGroupKey ? bankGroups[bankGroupKey] : null
