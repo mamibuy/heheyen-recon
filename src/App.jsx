@@ -449,6 +449,7 @@ function GatewayWorkspace({ gateway }) {
   const [viewInvKey, setViewInvKey] = useState(null)
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
   const [viewBankGroupKey, setViewBankGroupKey] = useState(null)
+  const [bankGroupNote, setBankGroupNote] = useState('')
   const [invNote, setInvNote] = useState('')
   const [txInvNote, setTxInvNote] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState(null)
@@ -541,6 +542,11 @@ function GatewayWorkspace({ gateway }) {
       setTxInvPopupDate(localStorage.getItem(`txinv_date_${viewTxInvKey}`) ?? '')
     }
   }, [viewTxInvKey])
+  useEffect(() => {
+    if (viewBankGroupKey) {
+      setBankGroupNote(localStorage.getItem(`bankgroup_note_${gateway}_${viewBankGroupKey}`) ?? '')
+    }
+  }, [viewBankGroupKey])
   useEffect(() => {
     setSopHtml('')
     setSopEditing(false)
@@ -1979,6 +1985,11 @@ function GatewayWorkspace({ gateway }) {
         const payableSum = Math.round(bgOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
         const bankDeposit = bgOrders[0]?.bank_deposit ?? null
         const diff = bankDeposit != null ? Math.round((bankDeposit - payableSum) * 100) / 100 : null
+        const noteKey = `bankgroup_note_${gateway}_${viewBankGroupKey}`
+        const saveBankGroupNote = (val) => {
+          setBankGroupNote(val)
+          localStorage.setItem(noteKey, val)
+        }
         const rowStyle = { borderBottom: '1px solid #f0f0f0' }
         const labelStyle = { padding: '8px 0', color: C.sub, width: 110, verticalAlign: 'top' }
         const valStyle = { padding: '8px 0' }
@@ -2010,6 +2021,18 @@ function GatewayWorkspace({ gateway }) {
                       </td>
                     </tr>
                   )}
+                  <tr style={rowStyle}>
+                    <td style={{ ...labelStyle, verticalAlign: 'top', paddingTop: 10 }}>備注</td>
+                    <td style={{ ...valStyle }}>
+                      <textarea
+                        value={bankGroupNote}
+                        onChange={e => saveBankGroupNote(e.target.value)}
+                        placeholder="輸入備注（例如差額說明）…"
+                        rows={3}
+                        style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      />
+                    </td>
+                  </tr>
                   <tr>
                     <td style={{ ...labelStyle, borderBottom: 'none' }}>包含訂單</td>
                     <td style={{ ...valStyle, borderBottom: 'none' }}>
