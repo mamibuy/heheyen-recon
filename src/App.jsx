@@ -472,6 +472,7 @@ function GatewayWorkspace({ gateway }) {
   const [bankMsg, setBankMsg] = useState({})
   const [bankEntryChecked, setBankEntryChecked] = useState(new Set())
   const [bankCCOrderSel, setBankCCOrderSel] = useState({})
+  const [confirmedGroupExp, setConfirmedGroupExp] = useState({})
   const bankFileRef = useRef(null)
 
   const [ordInvRows, setOrdInvRows] = useState(null)
@@ -1292,6 +1293,65 @@ function GatewayWorkspace({ gateway }) {
             <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
             {bankFileName && <span style={{ fontSize: 12, color: C.sub }}>{bankFileName}</span>}
           </div>
+
+          {/* 已確認入帳群組 — 從 DB 訂單計算，不依賴銀行對帳單是否上傳 */}
+          {(() => {
+            const confirmed = orders.filter(o => o.recon_status === '已入帳' && o.in_date)
+            if (confirmed.length === 0) return null
+            const groups = {}
+            confirmed.forEach(o => {
+              const k = (o.in_date || '').slice(0, 10)
+              if (!groups[k]) groups[k] = { date: k, orders: [], payable: 0 }
+              groups[k].orders.push(o)
+              groups[k].payable += o.payable || 0
+            })
+            const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
+            return (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ fontSize: 12, color: C.sub, margin: '0 0 8px', fontWeight: 600 }}>已確認入帳</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {sorted.map(g => {
+                    const exp = !!confirmedGroupExp[g.date]
+                    return (
+                      <div key={g.date} style={{ border: '1.5px solid #a8d5c2', borderRadius: 10, padding: '10px 14px', background: '#f0faf5' }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13 }}>入帳日：{g.date}</span>
+                          <span style={{ fontSize: 13 }}>應入帳合計：<strong style={{ color: C.brand }}>NT$ {(Math.round(g.payable * 100) / 100).toLocaleString()}</strong></span>
+                          <span style={{ fontSize: 12, color: C.sub }}>{g.orders.length} 筆</span>
+                          <button onClick={() => setConfirmedGroupExp(p => ({ ...p, [g.date]: !exp }))}
+                            style={{ ...btnGhost, fontSize: 11, padding: '2px 8px', marginLeft: 'auto' }}>
+                            {exp ? '收起 ▲' : '展開 ▼'}
+                          </button>
+                        </div>
+                        {exp && (
+                          <div style={{ marginTop: 8, borderTop: '1px solid #d0ece5', paddingTop: 8 }}>
+                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ color: C.sub }}>
+                                  <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
+                                  <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
+                                  <th style={{ padding: '3px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {g.orders.sort((a, b) => (a.order_date || '').localeCompare(b.order_date || '')).map(o => (
+                                  <tr key={o.id} style={{ borderBottom: '1px solid #e8f5f0' }}>
+                                    <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                                    <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
+                                    <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {bankRows.length > 0 && (() => {
             // 從已上傳的撥款報表（rows1）建立「銀行入帳日 → 預計金額」對照表
