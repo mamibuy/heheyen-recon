@@ -8,7 +8,39 @@ import { num, pick, excelDate } from './parsers.js'
 export function stripDash(s) { return String(s).replace(/-/g, '') }
 
 // 1. 蝦皮（逐筆）
+// 新格式（蝦皮報表，有「錢包入帳金額」）：payable = 錢包入帳金額，fee = abs(sum(I:W))
+// 舊格式（撥款明細，有「銀行實際收款金額」）：沿用原有邏輯
 function parseShopeeRecon(rows) {
+  if (!rows.length) return []
+  const headers = Object.keys(rows[0])
+  const isNewFormat = headers.includes('錢包入帳金額')
+
+  if (isNewFormat) {
+    // 費用欄：「商品原價」之後到「錢包入帳金額」之前（動態定位，相容有無序號欄的兩種格式）
+    const priceIdx = headers.indexOf('商品原價')
+    const walletIdx = headers.indexOf('錢包入帳金額')
+    const feeCols = (priceIdx >= 0 && walletIdx > priceIdx)
+      ? headers.slice(priceIdx + 1, walletIdx)
+      : headers.slice(8, 23)
+    return rows.map(r => {
+      const feeSum = feeCols.reduce((s, col) => {
+        const v = Number(r[col])   // Number('2.50%') = NaN，避免費率欄被誤算
+        return s + (isNaN(v) ? 0 : v)
+      }, 0)
+      const payable = num(pick(r, ['錢包入帳金額']))
+      return {
+        key: String(pick(r, ['訂單編號'])).trim(),
+        key_type: 'ref_no',
+        fee: Math.abs(feeSum),
+        payable,
+        actual_in: null,
+        in_date: null,
+        payout_date: null,
+      }
+    }).filter(r => r.key)
+  }
+
+  // 舊格式（撥款明細）
   return rows.map(r => {
     const fee = num(pick(r, ['成交手續費'])) + num(pick(r, ['其他服務費'])) + num(pick(r, ['金流與系統處理費']))
     const total = num(pick(r, ['買家實際支付金額', '買家總支付金額', '訂單金額']))

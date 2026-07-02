@@ -424,6 +424,7 @@ function GatewayWorkspace({ gateway }) {
   const isLineMallLinePay = gateway === 'linepay'
   const isLanxin = gateway === 'lanxin'
   const isPayuniCC = gateway === 'payuni_cc'
+  const isShopee = gateway === 'shopee'
   const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin || isLinePayOfficial
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
@@ -512,6 +513,16 @@ function GatewayWorkspace({ gateway }) {
   const [txFeeAccInDate, setTxFeeAccInDate] = useState({})
   const txFeeAccFileRef = useRef(null)
 
+  const [shopeeOrdRows, setShopeeOrdRows] = useState(null)
+  const [shopeeOrdFileName, setShopeeOrdFileName] = useState('')
+  const [shopeeOrdMsg, setShopeeOrdMsg] = useState('')
+  const shopeeOrdFileRef = useRef(null)
+
+  const [shopeeTxRows, setShopeeTxRows] = useState(null)
+  const [shopeeTxFileName, setShopeeTxFileName] = useState('')
+  const [shopeeTxMsg, setShopeeTxMsg] = useState('')
+  const shopeeTxFileRef = useRef(null)
+
   const [sopHtml, setSopHtml] = useState('')
   const [sopEditing, setSopEditing] = useState(false)
   const [sopSaving, setSopSaving] = useState(false)
@@ -573,8 +584,15 @@ function GatewayWorkspace({ gateway }) {
     const reader = new FileReader()
     reader.onload = ev => {
       const wb = XLSX.read(ev.target.result, { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      setRows(XLSX.utils.sheet_to_json(ws, { defval: '' }))
+      const opts = { defval: '' }
+      let ws
+      if (wb.Sheets['Income']) {
+        ws = wb.Sheets['Income']
+        opts.range = 5  // 蝦皮進帳報表：第 6 列才是欄位標題
+      } else {
+        ws = wb.Sheets[wb.SheetNames[0]]
+      }
+      setRows(XLSX.utils.sheet_to_json(ws, opts))
     }
     reader.readAsArrayBuffer(f)
   }
@@ -640,6 +658,72 @@ function GatewayWorkspace({ gateway }) {
       setTxFeeAccInDate({})
     }
     reader.readAsArrayBuffer(f)
+  }
+
+  async function handleShopeeOrdImport() {
+    if (!shopeeOrdRows) { setShopeeOrdMsg('請先上傳檔案'); return }
+    setShopeeOrdMsg('處理中…')
+    const orderMap = {}
+    for (const r of shopeeOrdRows) {
+      const ref = String(r['訂單編號'] || '').trim()
+      if (!ref || orderMap[ref]) continue
+      const rawDate = String(r['訂單成立日期'] || '').trim()
+      orderMap[ref] = {
+        ref_no: ref,
+        order_date: rawDate ? rawDate.slice(0, 10) : null,
+        total: parseFloat(r['買家總支付金額']) || null,
+        platform: '蝦皮',
+        pay_method: String(r['付款方式'] || '').trim() || null,
+      }
+    }
+    const toCheck = Object.values(orderMap)
+    if (!toCheck.length) { setShopeeOrdMsg('找不到訂單編號欄位'); return }
+    const { data: existing } = await supabase
+      .from('shipping_orders').select('ref_no')
+      .in('ref_no', toCheck.map(o => o.ref_no))
+    const existingRefs = new Set((existing || []).map(o => o.ref_no))
+    const toInsert = toCheck.filter(o => !existingRefs.has(o.ref_no))
+    const skipped = toCheck.length - toInsert.length
+    if (!toInsert.length) {
+      setShopeeOrdMsg(`${toCheck.length} 筆已全部匯入過，無新增`)
+      return
+    }
+    const { error } = await supabase.from('shipping_orders').insert(toInsert)
+    if (error) { setShopeeOrdMsg('錯誤：' + error.message); return }
+    setShopeeOrdMsg(`新增 ${toInsert.length} 筆${skipped ? `，略過 ${skipped} 筆（已存在）` : ''}`)
+    loadOrders()
+  }
+
+  async function handleShopeeTxImport() {
+    if (!shopeeTxRows) { setShopeeTxMsg('請先上傳檔案'); return }
+    setShopeeTxMsg('比對中…')
+    const saMap = {}
+    const invMap = {}
+    for (const r of shopeeTxRows) {
+      const ref = String(r['客戶訂單'] || '').trim()
+      const sa = String(r['單號'] || '').trim()
+      const inv = String(r['發票號碼'] || '').trim()
+      if (ref && sa.startsWith('SA') && !saMap[ref]) saMap[ref] = sa
+      if (ref && inv && !invMap[ref]) invMap[ref] = inv
+    }
+    const byRef = {}
+    for (const o of orders) byRef[o.ref_no] = o.id
+    let updated = 0
+    const unmatched = []
+    const allRefs = new Set([...Object.keys(saMap), ...Object.keys(invMap)])
+    for (const ref of allRefs) {
+      const id = byRef[ref]
+      if (!id) continue
+      const upd = {}
+      if (saMap[ref]) upd.sa_no = saMap[ref]
+      if (invMap[ref]) upd.order_invoice_no = invMap[ref]
+      const { error } = await supabase.from('shipping_orders').update(upd).eq('id', id)
+      if (!error) updated++
+      else unmatched.push(ref)
+    }
+    const matched = [...allRefs].filter(r => byRef[r]).length
+    setShopeeTxMsg(`Excel ${allRefs.size} 筆，比對 ${matched} 筆蝦皮訂單，回填 ${updated} 筆${unmatched.length ? `，${unmatched.length} 筆失敗` : ''}`)
+    loadOrders()
   }
 
   async function saveSop() {
@@ -1090,9 +1174,59 @@ function GatewayWorkspace({ gateway }) {
 
   return (
     <div>
+      {/* 蝦皮訂單匯入 */}
+      {isShopee && (
+        <Card>
+          <strong style={{ fontSize: 14 }}>匯入蝦皮訂單</strong>
+          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
+            上傳蝦皮訂單 Excel，自動讀取訂單編號、訂單成立日期、買家總支付金額，重複訂單自動略過
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input ref={shopeeOrdFileRef} type="file" accept=".xlsx,.xls"
+              onChange={e => readFile(e, setShopeeOrdRows, setShopeeOrdFileName)} style={{ display: 'none' }} />
+            <button onClick={() => shopeeOrdFileRef.current.click()} style={btnGhost}>
+              {shopeeOrdFileName || '選擇蝦皮訂單 Excel'}
+            </button>
+            {shopeeOrdRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {shopeeOrdRows.length} 列</span>}
+            <button onClick={handleShopeeOrdImport} style={btnPrimary}>匯入</button>
+          </div>
+          {shopeeOrdMsg && (
+            <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
+              color: shopeeOrdMsg.includes('錯誤') || shopeeOrdMsg.includes('找不到') ? C.danger : C.brand }}>
+              {shopeeOrdMsg}
+            </p>
+          )}
+        </Card>
+      )}
+
+      {/* 蝦皮天心銷貨單比對 */}
+      {isShopee && (
+        <Card>
+          <strong style={{ fontSize: 14 }}>上傳天心銷貨單（回填銷貨單號 ＋ 訂單發票號碼）</strong>
+          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
+            比對「客戶訂單」與蝦皮平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input ref={shopeeTxFileRef} type="file" accept=".xlsx,.xls"
+              onChange={e => readFile(e, setShopeeTxRows, setShopeeTxFileName)} style={{ display: 'none' }} />
+            <button onClick={() => shopeeTxFileRef.current.click()} style={btnGhost}>
+              {shopeeTxFileName || '選擇天心銷貨單'}
+            </button>
+            {shopeeTxRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {shopeeTxRows.length} 列</span>}
+            <button onClick={handleShopeeTxImport} style={btnPrimary}>比對回填</button>
+          </div>
+          {shopeeTxMsg && (
+            <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
+              color: shopeeTxMsg.includes('錯誤') || shopeeTxMsg.includes('失敗') ? C.danger : C.brand }}>
+              {shopeeTxMsg}
+            </p>
+          )}
+        </Card>
+      )}
+
       {/* 上傳撥款明細 */}
       <Card>
-        <strong style={{ fontSize: 14 }}>上傳撥款明細</strong>
+        <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮報表' : '上傳撥款明細'}</strong>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
           {isTwoFile ? (
             <>
