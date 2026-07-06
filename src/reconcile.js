@@ -101,6 +101,8 @@ export async function reconcile(supabase, gateway, parsedRows) {
     // 只有報表本身含實際入帳金額（蝦皮）才回填 actual_in / in_date / 狀態改已入帳
     // 其他金流（CC / LINE Pay）入帳日只能從銀行對帳單確認後寫入，不從撥款報表覆蓋
     const updates = { fee_total, payable }
+    // 蝦皮進帳報表提供正確應收（商品原價 - 賣家自負折扣），一併更新 total
+    if (row.total != null) updates.total = row.total
     if (row.actual_in != null) {
       updates.actual_in = row.actual_in
       updates.in_date = row.in_date || null

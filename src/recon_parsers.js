@@ -19,20 +19,30 @@ function parseShopeeRecon(rows) {
     // 費用欄：「商品原價」之後到「錢包入帳金額」之前（動態定位，相容有無序號欄的兩種格式）
     const priceIdx = headers.indexOf('商品原價')
     const walletIdx = headers.indexOf('錢包入帳金額')
-    const feeCols = (priceIdx >= 0 && walletIdx > priceIdx)
+    const allFeeCols = (priceIdx >= 0 && walletIdx > priceIdx)
       ? headers.slice(priceIdx + 1, walletIdx)
       : headers.slice(8, 23)
+    // 「賣家負擔優惠券」與「賣家負擔蝦幣回饋券」是賣家自負折扣，不算平台手續費
+    // 應收 = 商品原價 - 這兩欄的絕對值；手續費排除這兩欄
+    const sellerDiscountCols = new Set(['賣家負擔優惠券', '賣家負擔蝦幣回饋券'])
+    const feeCols = allFeeCols.filter(h => !sellerDiscountCols.has(h))
     return rows.map(r => {
       const feeSum = feeCols.reduce((s, col) => {
         const v = Number(r[col])   // Number('2.50%') = NaN，避免費率欄被誤算
         return s + (isNaN(v) ? 0 : v)
       }, 0)
       const payable = num(pick(r, ['錢包入帳金額']))
+      // 應收 = 商品原價 + 賣家自負折扣（折扣值本身為負數）
+      const productPrice = num(pick(r, ['商品原價']))
+      const coupon = num(r['賣家負擔優惠券'] ?? 0)
+      const coin   = num(r['賣家負擔蝦幣回饋券'] ?? 0)
+      const total  = productPrice + coupon + coin
       return {
         key: String(pick(r, ['訂單編號'])).trim(),
         key_type: 'ref_no',
         fee: Math.abs(feeSum),
         payable,
+        total,
         actual_in: null,
         in_date: null,
         payout_date: null,
