@@ -40,9 +40,10 @@ function parseShopeeRecon(rows) {
     }).filter(r => r.key)
   }
 
-  // 舊格式（撥款明細）
+  // 舊格式（撥款明細）—— Excel 欄位為負數，取絕對值後存正數
   return rows.map(r => {
-    const fee = num(pick(r, ['成交手續費'])) + num(pick(r, ['其他服務費'])) + num(pick(r, ['金流與系統處理費']))
+    const feeRaw = num(pick(r, ['成交手續費'])) + num(pick(r, ['其他服務費'])) + num(pick(r, ['金流與系統處理費']))
+    const fee = Math.abs(feeRaw)
     const total = num(pick(r, ['買家實際支付金額', '買家總支付金額', '訂單金額']))
     const actual_in = num(pick(r, ['銀行實際收款金額'])) || null
     const in_date = excelDate(pick(r, ['銀行實際收款日'])) || null
