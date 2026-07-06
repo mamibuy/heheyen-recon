@@ -523,6 +523,16 @@ function GatewayWorkspace({ gateway }) {
   const [shopeeTxMsg, setShopeeTxMsg] = useState('')
   const shopeeTxFileRef = useRef(null)
 
+  const [ordInvEntryNo, setOrdInvEntryNo] = useState('')
+  const [ordInvEntryDate, setOrdInvEntryDate] = useState('')
+  const [ordInvEntryAmount, setOrdInvEntryAmount] = useState('')
+  const [ordInvEntryMethod, setOrdInvEntryMethod] = useState('auto')
+  const [ordInvEntryFrom, setOrdInvEntryFrom] = useState('')
+  const [ordInvEntryTo, setOrdInvEntryTo] = useState('')
+  const [ordInvEntryPreview, setOrdInvEntryPreview] = useState(null)
+  const [ordInvEntryChecked, setOrdInvEntryChecked] = useState(new Set())
+  const [ordInvEntryMsg, setOrdInvEntryMsg] = useState('')
+
   const [sopHtml, setSopHtml] = useState('')
   const [sopEditing, setSopEditing] = useState(false)
   const [sopSaving, setSopSaving] = useState(false)
@@ -723,6 +733,35 @@ function GatewayWorkspace({ gateway }) {
     }
     const matched = [...allRefs].filter(r => byRef[r]).length
     setShopeeTxMsg(`Excel ${allRefs.size} 筆，比對 ${matched} 筆蝦皮訂單，回填 ${updated} 筆${unmatched.length ? `，${unmatched.length} 筆失敗` : ''}`)
+    loadOrders()
+  }
+
+  function runOrdInvEntryPreview() {
+    const from = ordInvEntryFrom
+    const to = ordInvEntryTo
+    const filtered = orders.filter(o => {
+      const d = (o.order_date || '').slice(0, 10)
+      if (from && d < from) return false
+      if (to && d > to) return false
+      return true
+    })
+    setOrdInvEntryPreview(filtered)
+    setOrdInvEntryMsg('')
+  }
+
+  async function runApplyOrdInvEntry() {
+    const ids = ordInvEntryMethod === 'auto'
+      ? (ordInvEntryPreview || []).map(o => o.id)
+      : [...ordInvEntryChecked]
+    if (!ordInvEntryNo) { setOrdInvEntryMsg('請輸入發票號碼'); return }
+    if (!ids.length) { setOrdInvEntryMsg('沒有選取任何訂單'); return }
+    const { error } = await supabase.from('shipping_orders').update({
+      order_invoice_no: ordInvEntryNo,
+      order_invoice_date: ordInvEntryDate || null,
+      order_invoice_amount: ordInvEntryAmount ? Number(ordInvEntryAmount) : null,
+    }).in('id', ids)
+    if (error) { setOrdInvEntryMsg('錯誤：' + error.message); return }
+    setOrdInvEntryMsg(`已套用至 ${ids.length} 筆`)
     loadOrders()
   }
 
@@ -1782,6 +1821,115 @@ function GatewayWorkspace({ gateway }) {
           })()}
         </Card>
       )}
+
+      {/* 訂單發票輸入（蝦皮專屬） */}
+      {isShopee && (() => {
+        const amtNum = parseFloat(ordInvEntryAmount) || 0
+        const previewOrders = ordInvEntryMethod === 'auto'
+          ? (ordInvEntryPreview || [])
+          : orders.filter(o => !o.order_invoice_no)
+        const selectedOrders = ordInvEntryMethod === 'auto'
+          ? (ordInvEntryPreview || [])
+          : orders.filter(o => ordInvEntryChecked.has(o.id))
+        const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.total || 0), 0) * 100) / 100
+        const diff = Math.round((totalSum - amtNum) * 100) / 100
+        const isMatch = amtNum > 0 && diff === 0
+        const hasSel = selectedOrders.length > 0
+        return (
+          <Card>
+            <strong style={{ fontSize: 14 }}>訂單發票輸入</strong>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-end' }}>
+              <Field label="發票號碼">
+                <input value={ordInvEntryNo} onChange={e => setOrdInvEntryNo(e.target.value)} placeholder="AB-12345678" style={inp} />
+              </Field>
+              <Field label="發票日期">
+                <input type="date" value={ordInvEntryDate} onChange={e => setOrdInvEntryDate(e.target.value)} style={inp} />
+              </Field>
+              <Field label="發票金額（含稅）">
+                <input type="number" value={ordInvEntryAmount} onChange={e => setOrdInvEntryAmount(e.target.value)} placeholder="0" style={inp} />
+              </Field>
+            </div>
+
+            <div style={{ display: 'flex', margin: '12px 0', gap: 0 }}>
+              {[['auto', '方式 A — 期間篩選'], ['manual', '方式 B — 手動勾選']].map(([v, lbl], i) => (
+                <button key={v} onClick={() => { setOrdInvEntryMethod(v); setOrdInvEntryPreview(null); setOrdInvEntryChecked(new Set()); setOrdInvEntryMsg('') }} style={{
+                  padding: '6px 14px', border: `1px solid ${C.line}`, cursor: 'pointer', fontSize: 13,
+                  background: ordInvEntryMethod === v ? C.brand : '#fff', color: ordInvEntryMethod === v ? '#fff' : C.sub,
+                  borderRadius: i === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
+                }}>{lbl}</button>
+              ))}
+            </div>
+
+            {ordInvEntryMethod === 'auto' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <Field label="訂單日期起"><input type="date" value={ordInvEntryFrom} onChange={e => setOrdInvEntryFrom(e.target.value)} style={inp} /></Field>
+                <Field label="訂單日期訖"><input type="date" value={ordInvEntryTo} onChange={e => setOrdInvEntryTo(e.target.value)} style={inp} /></Field>
+                <div style={{ paddingBottom: 2 }}><button onClick={runOrdInvEntryPreview} style={btnPrimary}>查詢</button></div>
+              </div>
+            )}
+
+            {ordInvEntryMethod === 'manual' && (
+              <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto', marginBottom: 8 }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>
+                        <input type="checkbox"
+                          checked={previewOrders.length > 0 && ordInvEntryChecked.size === previewOrders.length}
+                          onChange={() => {
+                            if (ordInvEntryChecked.size === previewOrders.length) setOrdInvEntryChecked(new Set())
+                            else setOrdInvEntryChecked(new Set(previewOrders.map(o => o.id)))
+                          }} />
+                      </th>
+                      {['平台訂單編號', '訂單日期', '應收'].map(c => <th key={c} style={th}>{c}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewOrders.length === 0 && (
+                      <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: C.sub }}>所有訂單都已有發票號碼</td></tr>
+                    )}
+                    {previewOrders.map((o, i) => (
+                      <tr key={i} style={{ background: ordInvEntryChecked.has(o.id) ? C.brandBg : '#fff' }}>
+                        <td style={td}><input type="checkbox" checked={ordInvEntryChecked.has(o.id)}
+                          onChange={() => {
+                            const s = new Set(ordInvEntryChecked)
+                            s.has(o.id) ? s.delete(o.id) : s.add(o.id)
+                            setOrdInvEntryChecked(s)
+                          }} /></td>
+                        <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                        <td style={td}>{o.order_date || '—'}</td>
+                        <td style={{ ...td, textAlign: 'right' }}>{(o.total ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {(hasSel || (ordInvEntryPreview && ordInvEntryMethod === 'auto')) && (
+              <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 10,
+                background: isMatch ? C.brandBg : diff !== 0 && amtNum > 0 ? C.warnBg : '#f5f5f5',
+                display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13 }}>訂單筆數：<strong>{selectedOrders.length}</strong></span>
+                <span style={{ fontSize: 13 }}>應收加總：<strong>{totalSum.toLocaleString()}</strong></span>
+                {amtNum > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{amtNum.toLocaleString()}</strong></span>}
+                {amtNum > 0 && (
+                  <span style={{ fontSize: 13, color: isMatch ? C.brand : C.danger, fontWeight: 600 }}>
+                    差異：{diff.toLocaleString()}　{isMatch ? '✓ 相符' : '✗ 有差異'}
+                  </span>
+                )}
+                <button onClick={runApplyOrdInvEntry} style={btnPrimary}>套用</button>
+              </div>
+            )}
+            {ordInvEntryMsg && (
+              <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
+                color: ordInvEntryMsg.includes('錯誤') || ordInvEntryMsg.includes('請') ? C.danger : C.brand }}>
+                {ordInvEntryMsg}
+              </p>
+            )}
+          </Card>
+        )
+      })()}
 
       {/* 發票核對 */}
       <Card>
