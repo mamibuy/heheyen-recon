@@ -140,6 +140,52 @@ function parseOfficial(rows) {
     }).filter((o) => o.ref_no);
 }
 
+// ---------- 官網大筆訂單（訂單總表（二）多行格式） ----------
+// 每筆訂單有一行頭列（含 ref_no、聯絡人、總計）+ 零或多行贈品列（ref_no 空白）
+export function parseOfficialBulk(rows) {
+  const orders = []
+  let current = null
+  for (const r of rows) {
+    const ref  = String(r['參照編號'] ?? '').trim()
+    const code = String(r['編碼']    ?? '').trim()
+    const item = String(r['品項']    ?? '').trim()
+    const qty  = num(r['數量'])
+    if (ref) {
+      current = {
+        platform: '官網',
+        ref_no: ref,
+        order_date: excelDate(r['日期']) || '',
+        contact: String(r['聯絡人'] ?? ''),
+        address: String(r['地址']   ?? ''),
+        phone:   String(r['電話']   ?? ''),
+        email:   String(r['Email']  ?? ''),
+        pay_method: String(r['付款方式'] ?? ''),
+        note:    String(r['備註'] ?? '') || '官網',
+        store:   String(r['商店'] ?? '') || 'HEHEYEN和和研',
+        pkg_count: num(r['件數']) || 1,
+        tracking_no: String(r['託運單號'] ?? ''),
+        total:   num(r['總計']) || 0,
+        shipping_fee: 0,
+        product_text: item,
+        pre_items: code || item ? [{
+          code, item_name: item, qty,
+          unit_price: num(r['含稅單價']) || 0,
+          subtotal:   num(r['小計'])    || 0,
+          role: 'main', matched: true,
+        }] : [],
+      }
+      orders.push(current)
+    } else if (current && (code || item)) {
+      current.pre_items.push({
+        code, item_name: item, qty,
+        unit_price: 0, subtotal: 0,
+        role: 'gift', matched: true,
+      })
+    }
+  }
+  return orders
+}
+
 export const PARSERS = {
   '蝦皮': parseShopee,
   'LINE商城': parseLineMall,

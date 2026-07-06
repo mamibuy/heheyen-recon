@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
-import { PARSERS, detectPlatform, excelDate } from './parsers.js'
+import { PARSERS, detectPlatform, excelDate, parseOfficialBulk } from './parsers.js'
 import { buildBlocks } from './transform.js'
 import { RECON_PARSERS, parseOfficialLinePayReconDual } from './recon_parsers.js'
 import { reconcile, previewInvoice, applyInvoice, loadGatewayOrders } from './reconcile.js'
@@ -88,6 +88,20 @@ function ConvertPage() {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const wb = XLSX.read(ev.target.result, { type: 'array' })
+
+      // 含「訂單總表（二）」頁籤 → 官網大筆訂單格式（多行合併）
+      if (wb.Sheets['訂單總表（二）']) {
+        const ws = wb.Sheets['訂單總表（二）']
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+          .filter(r => Object.values(r).some(v => v !== '' && v !== null))
+        const parsed = parseOfficialBulk(rows)
+        setPlatform('官網')
+        setOrders(parsed)
+        setBlocks(buildBlocks(parsed, mapping))
+        setMsg(`已辨識為「官網」（訂單總表格式），共 ${parsed.length} 筆訂單。`)
+        return
+      }
+
       const ws = wb.Sheets[wb.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
       const headers = rows.length ? Object.keys(rows[0]) : []

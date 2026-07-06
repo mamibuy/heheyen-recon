@@ -80,7 +80,7 @@ export function buildBlocks(orders, mapping) {
   const unmatched = [];
 
   for (const o of orders) {
-    const items = expandItems(o, mapping);
+    const items = (o.pre_items && o.pre_items.length) ? o.pre_items : expandItems(o, mapping);
     seq += 1;
 
     items.forEach((it, idx) => {
