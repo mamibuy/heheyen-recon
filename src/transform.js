@@ -35,8 +35,7 @@ export function expandItems(order, mapping) {
         role: m.role,
         code: m.code,
         item_name: m.item_name,
-        // 主商品數量 = 對照表qty（已是該商品的盒數）；如平台一單買多組可乘 orderQty
-        qty: num(m.qty),
+        qty: num(m.qty) * orderQty,
         matched: true,
       });
     }
