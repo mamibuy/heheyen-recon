@@ -298,6 +298,7 @@ function MappingPage() {
                     <td style={{ ...td, textAlign: 'right', color: C.sub }}>{r.sort_order}</td>
                     <td style={td}>
                       <button onClick={() => setEditing(r)} style={miniBtn}>編輯</button>
+                      <button onClick={() => setEditing({ ...r, id: undefined })} style={miniBtn}>複製</button>
                       <button onClick={() => delRow(r.id)} style={{ ...miniBtn, color: C.danger }}>刪除</button>
                     </td>
                   </tr>
