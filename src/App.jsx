@@ -1690,7 +1690,7 @@ function GatewayWorkspace({ gateway }) {
                     })()
                 for (const o of dateOrders) {
                   const { error } = await supabase.from('shipping_orders')
-                    .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+                    .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
                   if (error) { hasErr = true; break }
                 }
                 if (!hasErr) {
@@ -2606,7 +2606,7 @@ function GatewayWorkspace({ gateway }) {
                 const dateOrders = orders.filter(o => ccSel.has(String(o.id)))
                 for (const o of dateOrders) {
                   const { error } = await supabase.from('shipping_orders')
-                    .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+                    .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
                   if (error) { hasErr = true; break }
                 }
                 if (!hasErr) setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
@@ -2676,7 +2676,7 @@ function GatewayWorkspace({ gateway }) {
                               const dateOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
                               for (const o of dateOrders) {
                                 await supabase.from('shipping_orders')
-                                  .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+                                  .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
                               }
                               setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
                               await loadOrders()
