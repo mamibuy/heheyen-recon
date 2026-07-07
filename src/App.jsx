@@ -643,7 +643,7 @@ function GatewayWorkspace({ gateway }) {
       }
       const parsed = all.slice(headerIdx + 1)
         .filter(r => {
-          if (isShopee) return String(r[ci.note] || '').toUpperCase().includes('SHOPEE')
+          if (isShopee) return String(r[ci.note] || '').toUpperCase().includes('SHOPEE') || String(r[ci.account] || '').includes('808/0370979139156')
           if (isPayuniCC) return String(r[ci.summary] || '').includes('ＰＡＹＵ')
           const a = String(r[ci.account] || '')
           if (isLineMallLinePay) return a.includes('387/0000000060558379') || a.includes('808/1229940024585')
