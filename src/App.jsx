@@ -613,7 +613,6 @@ function GatewayWorkspace({ gateway }) {
       let ws
       if (wb.Sheets['Income']) {
         ws = wb.Sheets['Income']
-        opts.range = 5  // 蝦皮進帳報表：第 6 列才是欄位標題
       } else {
         ws = wb.Sheets[wb.SheetNames[0]]
       }
