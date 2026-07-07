@@ -1508,11 +1508,11 @@ function GatewayWorkspace({ gateway }) {
           <strong style={{ fontSize: 14 }}>
             {isPayuniCC ? '玉山銀行對帳' : `玉山銀行對帳（${isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）`}
           </strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            {isPayuniCC
-              ? '從玉山對帳單篩出摘要含 PAYUNi 的入帳，手動選取對應訂單後確認入帳日，可至 payuni > UNi帳戶 > 帳戶明細 > 查詢日期，下載帳戶進出明細確認'
-              : '以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款'}
-          </p>
+          {!isPayuniCC && (
+            <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
+              以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
+            </p>
+          )}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
             <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
             <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
