@@ -1231,7 +1231,7 @@ function GatewayWorkspace({ gateway }) {
       {/* 蝦皮訂單匯入 */}
       {isShopee && (
         <Card>
-          <strong style={{ fontSize: 14 }}>匯入蝦皮訂單</strong>
+          <strong style={{ fontSize: 14 }}>上傳蝦皮「我的銷售」</strong>
           <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
             上傳蝦皮訂單 Excel，自動讀取訂單編號、訂單成立日期、買家總支付金額，重複訂單自動略過
           </p>
@@ -1280,7 +1280,7 @@ function GatewayWorkspace({ gateway }) {
 
       {/* 上傳撥款明細 */}
       <Card>
-        <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮報表' : '上傳撥款明細'}</strong>
+        <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮「我的進帳」' : '上傳撥款明細'}</strong>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
           {isTwoFile ? (
             <>
