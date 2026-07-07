@@ -29,9 +29,51 @@ const GATEWAY_LIST = [
   { key: 'lanxin',         label: 'LINE商城 › 信用卡' },
 ]
 
+function PasswordGate({ children }) {
+  const [authed, setAuthed] = useState(() => localStorage.getItem('hhy_auth') === '1')
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState(false)
+  if (authed) return children
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif' }}>
+      <div style={{ background: '#fff', borderRadius: 14, padding: '40px 36px', boxShadow: '0 4px 24px rgba(0,0,0,0.10)', minWidth: 300, textAlign: 'center' }}>
+        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: C.ink }}>和和研 · 電商出貨彙整</div>
+        <div style={{ fontSize: 13, color: C.sub, marginBottom: 24 }}>請輸入密碼以繼續</div>
+        <input
+          type="password"
+          value={pw}
+          onChange={e => { setPw(e.target.value); setErr(false) }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              if (pw === 'imheheyen') { localStorage.setItem('hhy_auth', '1'); setAuthed(true) }
+              else setErr(true)
+            }
+          }}
+          placeholder="密碼"
+          autoFocus
+          style={{ width: '100%', padding: '10px 14px', fontSize: 15, border: `1.5px solid ${err ? C.danger : C.line}`,
+            borderRadius: 8, outline: 'none', boxSizing: 'border-box', marginBottom: 10 }}
+        />
+        {err && <div style={{ fontSize: 12, color: C.danger, marginBottom: 8 }}>密碼錯誤，請再試一次</div>}
+        <button
+          onClick={() => {
+            if (pw === 'imheheyen') { localStorage.setItem('hhy_auth', '1'); setAuthed(true) }
+            else setErr(true)
+          }}
+          style={{ width: '100%', padding: '10px 0', background: C.brand, color: '#fff', border: 'none',
+            borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+          進入
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [tab, setTab] = useState('convert')
   return (
+    <PasswordGate>
     <div style={{ minHeight: '100vh', background: C.bg, color: C.ink,
       fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif' }}>
       <header style={{ background: C.card, borderBottom: `1px solid ${C.line}`, padding: '14px 20px' }}>
@@ -50,6 +92,7 @@ export default function App() {
         {tab === 'recon' && <ReconPage />}
       </main>
     </div>
+    </PasswordGate>
   )
 }
 
