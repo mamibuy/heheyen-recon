@@ -440,7 +440,7 @@ function GatewayWorkspace({ gateway }) {
   const isLanxin = gateway === 'lanxin'
   const isPayuniCC = gateway === 'payuni_cc'
   const isShopee = gateway === 'shopee'
-  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin || isLinePayOfficial
+  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin || isLinePayOfficial || isShopee
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
   const [rows1, setRows1] = useState(null)
@@ -638,10 +638,12 @@ function GatewayWorkspace({ gateway }) {
         actual:  hdr.indexOf('實際交易日期'),
         summary: hdr.indexOf('摘要'),
         deposit: hdr.indexOf('存'),
+        note:    hdr.indexOf('備註'),
         account: hdr.indexOf('轉出入銀行代號/帳號'),
       }
       const parsed = all.slice(headerIdx + 1)
         .filter(r => {
+          if (isShopee) return String(r[ci.note] || '').toUpperCase().includes('SHOPEE')
           if (isPayuniCC) return String(r[ci.summary] || '').includes('ＰＡＹＵ')
           const a = String(r[ci.account] || '')
           if (isLineMallLinePay) return a.includes('387/0000000060558379') || a.includes('808/1229940024585')
@@ -2496,6 +2498,215 @@ function GatewayWorkspace({ gateway }) {
           {txFeeAccRows.length === 0 && txFeeAccFileName && (
             <p style={{ fontSize: 12, color: C.warn, marginTop: 8 }}>未找到「執行方式 = 資訊服務」的資料</p>
           )}
+        </Card>
+      )}
+
+      {/* 蝦皮玉山銀行對帳 */}
+      {isShopee && (
+        <Card>
+          <strong style={{ fontSize: 14 }}>玉山銀行對帳</strong>
+          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
+            上傳玉山對帳單，篩出備註含「SHOPEE」的入帳，手動勾選對應訂單後確認入帳日
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
+            <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
+            <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
+            {bankFileName && <span style={{ fontSize: 12, color: C.sub }}>{bankFileName}</span>}
+          </div>
+
+          {/* 已確認入帳群組 */}
+          {(() => {
+            const confirmed = orders.filter(o => o.recon_status === '已入帳' && o.in_date)
+            if (!confirmed.length) return null
+            const groups = {}
+            confirmed.forEach(o => {
+              const k = (o.in_date || '').slice(0, 10)
+              if (!groups[k]) groups[k] = { date: k, orders: [], payable: 0 }
+              groups[k].orders.push(o)
+              groups[k].payable += o.payable || 0
+            })
+            const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
+            return (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ fontSize: 12, color: C.sub, margin: '0 0 8px', fontWeight: 600 }}>已確認入帳</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {sorted.map(g => {
+                    const exp = !!confirmedGroupExp[g.date]
+                    return (
+                      <div key={g.date} style={{ border: '1.5px solid #a8d5c2', borderRadius: 10, padding: '10px 14px', background: '#f0faf5' }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13 }}>入帳日：{g.date}</span>
+                          <span style={{ fontSize: 13 }}>應入帳合計：<strong style={{ color: C.brand }}>NT$ {(Math.round(g.payable * 100) / 100).toLocaleString()}</strong></span>
+                          <span style={{ fontSize: 12, color: C.sub }}>{g.orders.length} 筆</span>
+                          <button onClick={() => setConfirmedGroupExp(p => ({ ...p, [g.date]: !exp }))}
+                            style={{ ...btnGhost, fontSize: 11, padding: '2px 8px', marginLeft: 'auto' }}>
+                            {exp ? '收起 ▲' : '展開 ▼'}
+                          </button>
+                        </div>
+                        {exp && (
+                          <div style={{ marginTop: 8, borderTop: '1px solid #d0ece5', paddingTop: 8 }}>
+                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                              <thead><tr style={{ color: C.sub }}>
+                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
+                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
+                                <th style={{ padding: '3px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
+                              </tr></thead>
+                              <tbody>
+                                {g.orders.sort((a, b) => (a.order_date || '').localeCompare(b.order_date || '')).map(o => (
+                                  <tr key={o.id} style={{ borderBottom: '1px solid #e8f5f0' }}>
+                                    <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                                    <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
+                                    <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* 銀行對帳單入帳列表 */}
+          {bankRows.length > 0 && (() => {
+            const displayRows = bankRows
+
+            async function batchConfirmShopee() {
+              const selected = [...bankEntryChecked]
+              if (!selected.length) return
+              setBankMsg(p => { const n = {...p}; selected.forEach(i => { n[i] = '寫入中…' }); return n })
+              let hasErr = false
+              for (const idx of selected) {
+                const br = displayRows[idx]
+                if (!br) continue
+                const ccSel = bankCCOrderSel[idx] ?? new Set()
+                const dateOrders = orders.filter(o => ccSel.has(String(o.id)))
+                for (const o of dateOrders) {
+                  const { error } = await supabase.from('shipping_orders')
+                    .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+                  if (error) { hasErr = true; break }
+                }
+                if (!hasErr) setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+                else break
+              }
+              if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
+            }
+
+            const allChecked = displayRows.length > 0 && bankEntryChecked.size === displayRows.length
+
+            return (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                  <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={allChecked}
+                      onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
+                    全選
+                  </label>
+                  {bankEntryChecked.size > 0 && (
+                    <button onClick={batchConfirmShopee} style={{ ...btnPrimary, fontSize: 13 }}>
+                      批次確認入帳（{bankEntryChecked.size} 筆）
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {displayRows.map((br, idx) => {
+                    const ccSel = bankCCOrderSel[idx] ?? new Set()
+                    const pendingOrders = orders
+                      .filter(o => o.recon_status !== '已入帳')
+                      .sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
+                    const selectedOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
+                    const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                    const ccDiff = ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
+                    const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
+                    const expanded = !!bankExpanded[idx]
+                    const isDone = !!bankMsg[idx]?.startsWith('✓')
+                    const cardBorderColor = ccSel.size > 0 ? (ccMatch ? '#a8d5c2' : C.danger) : '#e0e0e0'
+                    const cardBg = ccSel.size > 0 && ccMatch ? '#f0faf5' : '#fff'
+                    return (
+                      <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: 10, padding: '12px 16px', background: cardBg }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {!isDone && (
+                            <input type="checkbox" checked={bankEntryChecked.has(idx)}
+                              onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
+                          )}
+                          <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
+                          <span style={{ fontSize: 12, color: C.sub }}>{br.summary}</span>
+                          <span style={{ fontSize: 13 }}>銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong></span>
+                          {ccSel.size > 0 && (
+                            <span style={{ fontSize: 13 }}>
+                              已選：<strong>NT$ {ordersPayable.toLocaleString()}</strong>
+                              {ccDiff != null && (
+                                <span style={{ marginLeft: 6, fontWeight: 700, color: ccMatch ? C.brand : C.danger }}>
+                                  差異：{ccDiff > 0 ? '+' : ''}{ccDiff}{ccMatch && ' ✓'}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                          {!isDone && (
+                            <button onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
+                              style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}>
+                              {expanded ? '收起 ▲' : `選取訂單 ▼ (${pendingOrders.length})`}
+                            </button>
+                          )}
+                          {!isDone && ccSel.size > 0 && (
+                            <button onClick={async () => {
+                              const dateOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
+                              for (const o of dateOrders) {
+                                await supabase.from('shipping_orders')
+                                  .update({ in_date: br.date, actual_in: o.payable, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+                              }
+                              setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+                              await loadOrders()
+                            }} style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}>
+                              確認入帳（{ccSel.size} 筆）
+                            </button>
+                          )}
+                          {bankMsg[idx] && (
+                            <span style={{ fontSize: 13, color: bankMsg[idx].startsWith('✓') ? C.brand : C.danger, fontWeight: 600 }}>
+                              {bankMsg[idx]}
+                            </span>
+                          )}
+                        </div>
+                        {!isDone && expanded && (
+                          <div style={{ marginTop: 10, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
+                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                              <thead><tr style={{ color: C.sub }}>
+                                <th style={{ padding: '3px 6px' }}></th>
+                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
+                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
+                                <th style={{ padding: '3px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
+                              </tr></thead>
+                              <tbody>
+                                {pendingOrders.map(o => (
+                                  <tr key={o.id} style={{ background: ccSel.has(String(o.id)) ? C.brandBg : 'transparent', borderBottom: `1px solid ${C.line}` }}>
+                                    <td style={{ padding: '3px 6px' }}>
+                                      <input type="checkbox" checked={ccSel.has(String(o.id))}
+                                        onChange={() => {
+                                          const s = new Set(ccSel)
+                                          s.has(String(o.id)) ? s.delete(String(o.id)) : s.add(String(o.id))
+                                          setBankCCOrderSel(p => ({ ...p, [idx]: s }))
+                                        }} />
+                                    </td>
+                                    <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                                    <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
+                                    <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString() ?? '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
         </Card>
       )}
 
