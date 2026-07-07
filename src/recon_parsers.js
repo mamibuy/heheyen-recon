@@ -16,12 +16,10 @@ function parseShopeeRecon(rows) {
   const isNewFormat = headers.includes('錢包入帳金額')
 
   if (isNewFormat) {
-    // 手續費欄位：J~X（排除S=分期付款期數、T=金流與系統處理費率、Y=錢包入帳金額）
-    // 以欄位名稱比對，相容有無序號欄的兩種格式（有序號欄時各欄右移一格）
+    // 手續費欄位：J/K/L/P/Q/R/U/V/W/X（排除M/N/O/S/T/Y）
     const FEE_COL_NAMES = new Set([
       '賣場商品促銷折扣', '退款金額', '蝦皮補貼金額',
-      '賣家負擔優惠券', '賣家負擔蝦幣回饋券',
-      '買家支付運費', '蝦皮補助運費', '蝦皮代付運費', '退貨運費',
+      '蝦皮補助運費', '蝦皮代付運費', '退貨運費',
       'AMS推廣費用', '成交手續費', '其他服務費', '金流與系統處理費',
     ])
     const feeCols = headers.filter(h => FEE_COL_NAMES.has(h))
