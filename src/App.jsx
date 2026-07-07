@@ -1319,7 +1319,7 @@ function GatewayWorkspace({ gateway }) {
               </div>
               <div>
                 <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
-                <button onClick={() => fileRef2.current.click()} style={btnGhost}>{fileName2 || 'Payuni交易動態明細'}</button>
+                <button onClick={() => fileRef2.current.click()} style={btnGhost}>{fileName2 || 'Payuni電子錢包'}</button>
                 {rows2 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows2.length} 列</span>}
               </div>
             </>
