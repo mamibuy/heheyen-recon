@@ -1297,7 +1297,7 @@ function GatewayWorkspace({ gateway }) {
 
       {/* 上傳撥款明細 */}
       <Card>
-        <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮「我的進帳」' : '上傳撥款明細'}</strong>
+        <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮「我的進帳」' : isPayuniCC ? '上傳入帳表' : '上傳撥款明細'}</strong>
         {isPayuniCC && (
           <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
             統一金流 → 交易動態 → 入帳表 → 選擇期間 → 全部 → 查詢
