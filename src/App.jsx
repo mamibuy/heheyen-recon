@@ -1303,6 +1303,11 @@ function GatewayWorkspace({ gateway }) {
             統一金流 → 交易動態 → 入帳表 → 選擇期間 → 全部 → 查詢
           </p>
         )}
+        {isLineMallLinePay && (
+          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
+            LINE PAY撥款明細：清算/撥款 → 檢視詳細記錄 → 預計撥款日 → 選擇期間 → Excel → 下載報表
+          </p>
+        )}
         {isLinePayOfficial && (
           <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0', lineHeight: 1.8 }}>
             Line Pay撥款明細：存款/撥款 → 預計撥款日 → 選擇期間 → Excel → 下載報表<br />
