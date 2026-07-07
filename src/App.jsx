@@ -1308,6 +1308,11 @@ function GatewayWorkspace({ gateway }) {
             LINE PAY撥款明細：清算/撥款 → 檢視詳細記錄 → 預計撥款日 → 選擇期間 → Excel → 下載報表
           </p>
         )}
+        {isLanxin && (
+          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
+            藍新金流 → 交易查詢 → 預計撥款日 → 開始查詢 → 下載查詢結果
+          </p>
+        )}
         {isLinePayOfficial && (
           <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0', lineHeight: 1.8 }}>
             Line Pay撥款明細：存款/撥款 → 預計撥款日 → 選擇期間 → Excel → 下載報表<br />
