@@ -1300,7 +1300,7 @@ function GatewayWorkspace({ gateway }) {
         <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮「我的進帳」' : '上傳撥款明細'}</strong>
         {isPayuniCC && (
           <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
-            前往LINE PAY後台登入「EC帳號」→ 存款/撥款 → 預計撥款日 → 選擇期間 → Excel → 下載報表
+            統一金流 → 交易動態 → 入帳表 → 選擇期間 → 全部 → 查詢
           </p>
         )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
