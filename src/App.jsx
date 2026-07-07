@@ -1369,6 +1369,54 @@ function GatewayWorkspace({ gateway }) {
         )}
       </Card>
 
+      {isLinePayOfficial && (
+        <Card>
+          <strong style={{ fontSize: 14 }}>官網 LINE Pay 交易處理費</strong>
+          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
+            上傳 PayUni 帳戶明細，自動篩選「執行方式 = 資訊服務」的帳戶層服務費
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
+            <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls"
+              onChange={readTxFeeAccFile} />
+            <button onClick={() => txFeeAccFileRef.current.click()} style={btnGhost}>上傳帳戶明細</button>
+            {txFeeAccFileName && <span style={{ fontSize: 12, color: C.sub }}>{txFeeAccFileName}</span>}
+          </div>
+          {txFeeAccRows.length > 0 && (
+            <div style={{ marginTop: 12, overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5' }}>
+                    {['處理序號', '日期', '費用', '入帳日'].map(h => (
+                      <th key={h} style={{ ...th, fontWeight: 600 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {txFeeAccRows.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ ...td, fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
+                      <td style={td}>{r.date || '—'}</td>
+                      <td style={{ ...td, textAlign: 'right', color: C.danger }}>-{r.fee.toLocaleString()}</td>
+                      <td style={td}>{txFeeAccInDate[i] || '—'}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ fontWeight: 600, borderTop: '1px solid #ddd' }}>
+                    <td colSpan={2} style={{ ...td, color: C.sub, fontSize: 11 }}>合計</td>
+                    <td style={{ ...td, textAlign: 'right', color: C.danger }}>
+                      -{txFeeAccRows.reduce((s, r) => s + r.fee, 0).toLocaleString()}
+                    </td>
+                    <td style={td} />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+          {txFeeAccRows.length === 0 && txFeeAccFileName && (
+            <p style={{ fontSize: 12, color: C.warn, marginTop: 8 }}>未找到「執行方式 = 資訊服務」的資料</p>
+          )}
+        </Card>
+      )}
+
       {/* 對帳狀態清單 */}
       <Card>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 10 }}>
@@ -2471,54 +2519,6 @@ function GatewayWorkspace({ gateway }) {
           </Card>
         )
       })()}
-
-      {isLinePayOfficial && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>官網 LINE Pay 交易處理費</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            上傳 PayUni 帳戶明細，自動篩選「執行方式 = 資訊服務」的帳戶層服務費
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-            <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls"
-              onChange={readTxFeeAccFile} />
-            <button onClick={() => txFeeAccFileRef.current.click()} style={btnGhost}>上傳帳戶明細</button>
-            {txFeeAccFileName && <span style={{ fontSize: 12, color: C.sub }}>{txFeeAccFileName}</span>}
-          </div>
-          {txFeeAccRows.length > 0 && (
-            <div style={{ marginTop: 12, overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: '#f5f5f5' }}>
-                    {['處理序號', '日期', '費用', '入帳日'].map(h => (
-                      <th key={h} style={{ ...th, fontWeight: 600 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {txFeeAccRows.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ ...td, fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
-                      <td style={td}>{r.date || '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', color: C.danger }}>-{r.fee.toLocaleString()}</td>
-                      <td style={td}>{txFeeAccInDate[i] || '—'}</td>
-                    </tr>
-                  ))}
-                  <tr style={{ fontWeight: 600, borderTop: '1px solid #ddd' }}>
-                    <td colSpan={2} style={{ ...td, color: C.sub, fontSize: 11 }}>合計</td>
-                    <td style={{ ...td, textAlign: 'right', color: C.danger }}>
-                      -{txFeeAccRows.reduce((s, r) => s + r.fee, 0).toLocaleString()}
-                    </td>
-                    <td style={td} />
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-          {txFeeAccRows.length === 0 && txFeeAccFileName && (
-            <p style={{ fontSize: 12, color: C.warn, marginTop: 8 }}>未找到「執行方式 = 資訊服務」的資料</p>
-          )}
-        </Card>
-      )}
 
       {/* 蝦皮玉山銀行對帳 */}
       {isShopee && (
