@@ -1495,27 +1495,6 @@ function GatewayWorkspace({ gateway }) {
         </div>
       </Card>
 
-      {/* 匯入訂單發票號碼 */}
-      <Card>
-        <strong style={{ fontSize: 14 }}>匯入訂單發票號碼</strong>
-        <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
-          上傳含「發票號碼」欄位的天心銷貨單或平台報表，比對「客戶訂單 / 訂單編號」後回填
-        </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input ref={ordInvFileRef} type="file" accept=".xlsx,.xls"
-            onChange={e => readFile(e, setOrdInvRows, setOrdInvFileName)} style={{ display: 'none' }} />
-          <button onClick={() => ordInvFileRef.current.click()} style={btnGhost}>{ordInvFileName || '選擇檔案'}</button>
-          {ordInvRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {ordInvRows.length} 列</span>}
-          <button onClick={handleOrdInvImport} style={btnPrimary}>比對回填</button>
-        </div>
-        {ordInvMsg && (
-          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-            color: ordInvMsg.includes('找不到') ? C.danger : C.brand }}>
-            {ordInvMsg}
-          </p>
-        )}
-      </Card>
-
       {/* LINE Pay / 信用卡 銀行對帳 */}
       {(isLineMallLinePay || isLanxin || isLinePayOfficial || isPayuniCC) && (
         <Card>
