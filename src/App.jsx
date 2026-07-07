@@ -1303,17 +1303,21 @@ function GatewayWorkspace({ gateway }) {
             統一金流 → 交易動態 → 入帳表 → 選擇期間 → 全部 → 查詢
           </p>
         )}
+        {isLinePayOfficial && (
+          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0', lineHeight: 1.8 }}>
+            Line Pay撥款明細：存款/撥款 → 預計撥款日 → 選擇期間 → Excel → 下載報表<br />
+            Payuni交易動態明細_電子錢包：交易動態 → 交易表 → 選擇期間 → 電子錢包 → 查詢
+          </p>
+        )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
           {isTwoFile ? (
             <>
               <div>
-                <div style={{ fontSize: 12, color: C.sub, marginBottom: 4 }}>D-1 新 LINE Pay 對帳單</div>
                 <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
                 <button onClick={() => fileRef1.current.click()} style={btnGhost}>{fileName1 || '選擇 D-1 檔案'}</button>
                 {rows1 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows1.length} 列</span>}
               </div>
               <div>
-                <div style={{ fontSize: 12, color: C.sub, marginBottom: 4 }}>D-2 PayUni 電子錢包對帳單</div>
                 <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
                 <button onClick={() => fileRef2.current.click()} style={btnGhost}>{fileName2 || '選擇 D-2 檔案'}</button>
                 {rows2 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows2.length} 列</span>}
