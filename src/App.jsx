@@ -375,7 +375,7 @@ function MappingPage() {
 // 金流對帳頁 — 六個子分類工作區
 // ============================================================
 function ReconPage() {
-  const [activeGateway, setActiveGateway] = useState('coupang')
+  const [activeGateway, setActiveGateway] = useState('shopee')
   const [txRows, setTxRows] = useState(null)
   const [txFileName, setTxFileName] = useState('')
   const [txMsg, setTxMsg] = useState('')
