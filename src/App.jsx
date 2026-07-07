@@ -393,7 +393,7 @@ function ReconPage() {
 
   return (
     <div>
-      <Card>
+      {!isShopee && <Card>
         <strong style={{ fontSize: 14 }}>上傳天心銷貨單（回填銷貨單號）</strong>
         <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
           比對「客戶訂單」與平台訂單編號，將 SA 單號寫入銷貨單號欄位（適用所有平台）
@@ -416,7 +416,7 @@ function ReconPage() {
             {txResult.unmatched.length > 8 && `…等 ${txResult.unmatched.length} 筆`}
           </p>
         )}
-      </Card>
+      </Card>}
 
       <Card style={{ marginBottom: 0, borderRadius: '12px 12px 0 0' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
