@@ -1314,12 +1314,12 @@ function GatewayWorkspace({ gateway }) {
             <>
               <div>
                 <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
-                <button onClick={() => fileRef1.current.click()} style={btnGhost}>{fileName1 || '選擇 D-1 檔案'}</button>
+                <button onClick={() => fileRef1.current.click()} style={btnGhost}>{fileName1 || 'Line Pay撥款明細'}</button>
                 {rows1 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows1.length} 列</span>}
               </div>
               <div>
                 <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
-                <button onClick={() => fileRef2.current.click()} style={btnGhost}>{fileName2 || '選擇 D-2 檔案'}</button>
+                <button onClick={() => fileRef2.current.click()} style={btnGhost}>{fileName2 || 'Payuni交易動態明細'}</button>
                 {rows2 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows2.length} 列</span>}
               </div>
             </>
