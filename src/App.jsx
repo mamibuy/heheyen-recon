@@ -690,19 +690,20 @@ function GatewayWorkspace({ gateway }) {
     setShopeeOrdMsg('處理中…')
     const orderMap = {}
     for (const r of shopeeOrdRows) {
-      const ref = String(r['訂單編號'] || '').trim()
+      // A欄(0)=平台訂單編號、F欄(5)=訂單日期、K欄(10)=應收
+      const ref = String(r[0] || '').trim()
       if (!ref || orderMap[ref]) continue
-      const rawDate = String(r['訂單成立日期'] || '').trim()
+      const rawDate = String(r[5] || '').trim()
       orderMap[ref] = {
         ref_no: ref,
         order_date: rawDate ? rawDate.slice(0, 10) : null,
-        total: parseFloat(r['買家總支付金額']) || null,
+        total: parseFloat(r[10]) || null,
         platform: '蝦皮',
-        pay_method: String(r['付款方式'] || '').trim() || null,
+        pay_method: String(r[48] || '').trim() || null,
       }
     }
     const toCheck = Object.values(orderMap)
-    if (!toCheck.length) { setShopeeOrdMsg('找不到訂單編號欄位'); return }
+    if (!toCheck.length) { setShopeeOrdMsg('找不到有效訂單資料'); return }
     const { data: existing } = await supabase
       .from('shipping_orders').select('ref_no')
       .in('ref_no', toCheck.map(o => o.ref_no))
@@ -1237,7 +1238,19 @@ function GatewayWorkspace({ gateway }) {
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <input ref={shopeeOrdFileRef} type="file" accept=".xlsx,.xls"
-              onChange={e => readFile(e, setShopeeOrdRows, setShopeeOrdFileName)} style={{ display: 'none' }} />
+              onChange={e => {
+                const f = e.target.files?.[0]; if (!f) return
+                setShopeeOrdFileName(f.name)
+                const rd = new FileReader()
+                rd.onload = ev => {
+                  const wb = XLSX.read(ev.target.result, { type: 'array' })
+                  const ws = wb.Sheets[wb.SheetNames[0]]
+                  const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+                  // 跳過第一列（標題），保留 A欄有值的列
+                  setShopeeOrdRows(all.slice(1).filter(r => String(r[0] || '').trim()))
+                }
+                rd.readAsArrayBuffer(f)
+              }} style={{ display: 'none' }} />
             <button onClick={() => shopeeOrdFileRef.current.click()} style={btnGhost}>
               {shopeeOrdFileName || '選擇蝦皮訂單 Excel'}
             </button>
