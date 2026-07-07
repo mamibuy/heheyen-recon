@@ -1373,7 +1373,7 @@ function GatewayWorkspace({ gateway }) {
         <Card>
           <strong style={{ fontSize: 14 }}>官網 LINE Pay 交易處理費</strong>
           <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            上傳 PayUni 帳戶明細，自動篩選「執行方式 = 資訊服務」的帳戶層服務費
+            Payuni帳戶明細：UNi帳戶 → 帳戶明細 → 查詢日期 → 查詢
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
             <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls"
