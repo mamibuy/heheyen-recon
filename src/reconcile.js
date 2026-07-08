@@ -112,6 +112,7 @@ export async function reconcile(supabase, gateway, parsedRows) {
     }
     if (row.tx_code !== undefined) updates.tx_code = row.tx_code ?? null
     if (row.tx_fee !== undefined) updates.tx_fee = row.tx_fee ?? null
+    if (row.order_invoice_amount != null) updates.order_invoice_amount = row.order_invoice_amount
 
     const { error: updateError } = await supabase
       .from('shipping_orders')
