@@ -507,6 +507,9 @@ function GatewayWorkspace({ gateway }) {
   const [editMsg, setEditMsg] = useState('')
   const [viewInvKey, setViewInvKey] = useState(null)
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
+  const [viewOrdInvKey, setViewOrdInvKey] = useState(null)
+  const [ordInvDeleteConfirm, setOrdInvDeleteConfirm] = useState(false)
+  const [ordInvPopupDate, setOrdInvPopupDate] = useState('')
   const [viewBankGroupKey, setViewBankGroupKey] = useState(null)
   const [bankGroupNote, setBankGroupNote] = useState('')
   const [invNote, setInvNote] = useState('')
@@ -1241,6 +1244,18 @@ function GatewayWorkspace({ gateway }) {
     invoiceGroups[o.fee_invoice_no].feeSum += o.fee_total || 0
     invoiceGroups[o.fee_invoice_no].count++
   })
+  // 訂單發票分組
+  const ordInvGroups = {}
+  shownOrders.forEach(o => {
+    if (!o.order_invoice_no) return
+    if (!ordInvGroups[o.order_invoice_no]) ordInvGroups[o.order_invoice_no] = {
+      invDate: o.order_invoice_date ?? null,
+      invAmountSum: 0, count: 0,
+    }
+    ordInvGroups[o.order_invoice_no].invAmountSum += o.order_invoice_amount || 0
+    ordInvGroups[o.order_invoice_no].count++
+  })
+
   const txInvoiceGroups = {}
   shownOrders.forEach(o => {
     if (!o.tx_fee_invoice_no) return
@@ -1513,6 +1528,7 @@ function GatewayWorkspace({ gateway }) {
               {(() => {
                 const seenInv = new Set()
                 const seenTxInv = new Set()
+                const seenOrdInv = new Set()
                 const seenBankGroup = new Set()
                 return shownOrders.map((o, i) => {
                   const invBg = o.fee_invoice_no ? INV_BG[invColorIdx[o.fee_invoice_no]] : undefined
@@ -1523,6 +1539,9 @@ function GatewayWorkspace({ gateway }) {
                   const isFirstTxInv = o.tx_fee_invoice_no && !seenTxInv.has(o.tx_fee_invoice_no)
                   if (o.tx_fee_invoice_no) seenTxInv.add(o.tx_fee_invoice_no)
                   const txGrp = o.tx_fee_invoice_no ? txInvoiceGroups[o.tx_fee_invoice_no] : null
+                  const isFirstOrdInv = o.order_invoice_no && !seenOrdInv.has(o.order_invoice_no)
+                  if (o.order_invoice_no) seenOrdInv.add(o.order_invoice_no)
+                  const ordInvGrp = o.order_invoice_no ? ordInvGroups[o.order_invoice_no] : null
                   const bankGroupKey = (showBankGroup && o.recon_status === '已入帳' && o.in_date) ? o.in_date.slice(0, 10) : null
                   const isFirstBankGroup = bankGroupKey && !seenBankGroup.has(bankGroupKey)
                   if (bankGroupKey) seenBankGroup.add(bankGroupKey)
@@ -1540,7 +1559,15 @@ function GatewayWorkspace({ gateway }) {
                         </button>
                       </td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
-                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.order_invoice_no || '—'}</td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, cursor: o.order_invoice_no ? 'pointer' : 'default' }}
+                        onClick={o.order_invoice_no ? () => { setViewOrdInvKey(o.order_invoice_no); setOrdInvDeleteConfirm(false); setOrdInvPopupDate(ordInvGroups[o.order_invoice_no]?.invDate || '') } : undefined}>
+                        {isFirstOrdInv && ordInvGrp ? (
+                          <div>
+                            <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.order_invoice_no}</div>
+                            <div style={{ fontSize: 11, color: C.sub }}>{ordInvGrp.count} 筆</div>
+                          </div>
+                        ) : o.order_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
+                      </td>
                       {isShopee && <td style={{ ...td, textAlign: 'right' }}>{o.order_invoice_amount != null ? o.order_invoice_amount.toLocaleString() : '—'}</td>}
                       {!isShopee && <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: C.sub }}>{o.tx_code || '—'}</td>}
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
@@ -2379,6 +2406,75 @@ function GatewayWorkspace({ gateway }) {
                   </div>
                 )}
                 <button onClick={() => setViewTxInvKey(null)} style={btnGhost}>關閉</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* 訂單發票資訊 modal */}
+      {viewOrdInvKey && (() => {
+        const grp = ordInvGroups[viewOrdInvKey]
+        if (!grp) return null
+        const popupInpO = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+        const saveOrdInvDate = async (date) => {
+          await supabase.from('shipping_orders').update({ order_invoice_date: date || null }).eq('order_invoice_no', viewOrdInvKey)
+          await loadOrders()
+        }
+        const deleteOrdInvoice = async () => {
+          await supabase.from('shipping_orders')
+            .update({ order_invoice_no: null, order_invoice_date: null, order_invoice_amount: null })
+            .eq('order_invoice_no', viewOrdInvKey)
+          setViewOrdInvKey(null)
+          setOrdInvDeleteConfirm(false)
+          await loadOrders()
+        }
+        return (
+          <div style={overlay} onClick={() => setViewOrdInvKey(null)}>
+            <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>訂單發票資訊</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub, width: 110 }}>訂單發票號碼</td>
+                    <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewOrdInvKey}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>發票日期</td>
+                    <td style={{ padding: '6px 0' }}>
+                      <input type="date" value={ordInvPopupDate}
+                        onChange={e => setOrdInvPopupDate(e.target.value)}
+                        onBlur={e => saveOrdInvDate(e.target.value)}
+                        style={popupInpO} />
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>代收付發票金額</td>
+                    <td style={{ padding: '8px 0' }}>{Math.round(grp.invAmountSum * 100) / 100}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 0', color: C.sub }}>包含訂單</td>
+                    <td style={{ padding: '8px 0' }}>{grp.count} 筆</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+                {!ordInvDeleteConfirm ? (
+                  <button onClick={() => setOrdInvDeleteConfirm(true)}
+                    style={{ ...btnGhost, color: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                    刪除發票資訊
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: C.danger }}>確定刪除？</span>
+                    <button onClick={deleteOrdInvoice}
+                      style={{ ...btnPrimary, background: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                      確認
+                    </button>
+                    <button onClick={() => setOrdInvDeleteConfirm(false)} style={{ ...btnGhost, fontSize: 12 }}>取消</button>
+                  </div>
+                )}
+                <button onClick={() => setViewOrdInvKey(null)} style={btnGhost}>關閉</button>
               </div>
             </div>
           </div>
