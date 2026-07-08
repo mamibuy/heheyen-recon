@@ -474,7 +474,7 @@ function ReconPage() {
       {activeGateway === '__guide__' ? (
         <Card>
           <img
-            src="https://drive.google.com/uc?export=view&id=1W2sdKgvgQb7koLR9S4ComSQAEOV2hIJh"
+            src="recon-guide.png"
             alt="金流對帳說明"
             style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
           />
