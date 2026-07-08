@@ -463,6 +463,7 @@ function ReconPage() {
 
       <Card style={{ marginBottom: 0, borderRadius: '12px 12px 0 0' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <TabBtn active={activeGateway === '__guide__'} onClick={() => setActiveGateway('__guide__')}>說明</TabBtn>
           {GATEWAY_LIST.map(g => (
             <TabBtn key={g.key} active={activeGateway === g.key} onClick={() => setActiveGateway(g.key)}>
               {g.label}
@@ -470,7 +471,17 @@ function ReconPage() {
           ))}
         </div>
       </Card>
-      <GatewayWorkspace gateway={activeGateway} key={activeGateway} />
+      {activeGateway === '__guide__' ? (
+        <Card>
+          <img
+            src="https://drive.google.com/uc?export=view&id=1W2sdKgvgQb7koLR9S4ComSQAEOV2hIJh"
+            alt="金流對帳說明"
+            style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+          />
+        </Card>
+      ) : (
+        <GatewayWorkspace gateway={activeGateway} key={activeGateway} />
+      )}
     </div>
   )
 }
