@@ -1495,7 +1495,7 @@ function GatewayWorkspace({ gateway }) {
                     checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
                     onChange={toggleSelectAll} />
                 </th>
-                {['銷貨單號', '訂單發票號碼', '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])]
+                {['銷貨單號', '訂單發票號碼', ...(isShopee ? ['代收付發票金額'] : []), '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])]
                   .filter(c => !(isShopee && (c === '對應碼' || c === '交易處理費')))
                   .map(c => {
                   const key = SORT_KEY[c]
@@ -1541,6 +1541,7 @@ function GatewayWorkspace({ gateway }) {
                       </td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.order_invoice_no || '—'}</td>
+                      {isShopee && <td style={{ ...td, textAlign: 'right' }}>{o.order_invoice_amount != null ? o.order_invoice_amount.toLocaleString() : '—'}</td>}
                       {!isShopee && <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: C.sub }}>{o.tx_code || '—'}</td>}
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
                       <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
