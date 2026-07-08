@@ -1955,7 +1955,7 @@ function GatewayWorkspace({ gateway }) {
         const selectedOrders = ordInvEntryMethod === 'auto'
           ? (ordInvEntryPreview || [])
           : orders.filter(o => ordInvEntryChecked.has(o.id))
-        const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+        const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.order_invoice_amount || 0), 0) * 100) / 100
         const diff = Math.round((totalSum - amtNum) * 100) / 100
         const isMatch = amtNum > 0 && diff === 0
         const hasSel = selectedOrders.length > 0
@@ -2005,7 +2005,7 @@ function GatewayWorkspace({ gateway }) {
                             else setOrdInvEntryChecked(new Set(previewOrders.map(o => o.id)))
                           }} />
                       </th>
-                      {['平台訂單編號', '訂單日期', '應入帳'].map(c => <th key={c} style={th}>{c}</th>)}
+                      {['平台訂單編號', '訂單日期', '代收付發票金額'].map(c => <th key={c} style={th}>{c}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -2022,7 +2022,7 @@ function GatewayWorkspace({ gateway }) {
                           }} /></td>
                         <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
                         <td style={td}>{o.order_date || '—'}</td>
-                        <td style={{ ...td, textAlign: 'right' }}>{(o.payable ?? 0).toLocaleString()}</td>
+                        <td style={{ ...td, textAlign: 'right' }}>{(o.order_invoice_amount ?? 0).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2035,7 +2035,7 @@ function GatewayWorkspace({ gateway }) {
                 background: isMatch ? C.brandBg : diff !== 0 && amtNum > 0 ? C.warnBg : '#f5f5f5',
                 display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13 }}>訂單筆數：<strong>{selectedOrders.length}</strong></span>
-                <span style={{ fontSize: 13 }}>應入帳加總：<strong>{totalSum.toLocaleString()}</strong></span>
+                <span style={{ fontSize: 13 }}>代收付發票金額加總：<strong>{totalSum.toLocaleString()}</strong></span>
                 {amtNum > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{amtNum.toLocaleString()}</strong></span>}
                 {amtNum > 0 && (
                   <span style={{ fontSize: 13, color: isMatch ? C.brand : C.danger, fontWeight: 600 }}>
