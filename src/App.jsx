@@ -1951,7 +1951,7 @@ function GatewayWorkspace({ gateway }) {
         const amtNum = parseFloat(ordInvEntryAmount) || 0
         const previewOrders = ordInvEntryMethod === 'auto'
           ? (ordInvEntryPreview || [])
-          : orders.filter(o => !o.order_invoice_no)
+          : orders.filter(o => !o.order_invoice_no).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
         const selectedOrders = ordInvEntryMethod === 'auto'
           ? (ordInvEntryPreview || [])
           : orders.filter(o => ordInvEntryChecked.has(o.id))
