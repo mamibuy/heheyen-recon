@@ -12,21 +12,43 @@ const supabase = createClient(
   'sb_publishable_yDgLU7V2PcL_2QmrQkxo2w_WZGEbP63'
 )
 
+// ====== 品牌 Design Token（取樣自「純LGG活菌」主視覺）======
+// 寶藍為主色、深藍作標題／大數字、綠與紅僅作對帳語意（相符／差異）
+const T = {
+  bg: '#eef2f9', surface: '#ffffff', text: '#16233f',
+  divider: 'rgba(22,35,63,.14)',
+  n100: '#f6f8fc', n200: '#eaeff8', n300: '#d9e1ef', n400: '#bcc7dd',
+  n500: '#94a1bd', n600: '#6a7793', n700: '#48546f', n800: '#2b3550', n900: '#16233f',
+  a: '#123f96',
+  a100: '#e8f0fb', a200: '#cadef6', a300: '#9bbfec', a400: '#5688dc',
+  a500: '#2158bf', a600: '#0f3684', a700: '#0c2c6a', a800: '#0a2250', a900: '#071633',
+  g: '#1f9d6b',
+  g100: '#e4f6ee', g200: '#c4ead9', g300: '#97dabb', g400: '#57c295',
+  g500: '#1f9d6b', g600: '#16855a', g700: '#0f6b48',
+  navy: '#16265a', gold: '#c8a858',
+  danger: '#c0392b', dangerBg: '#fdecea',
+  shadowSm: '0 1px 2px rgba(22,35,63,.14)',
+  shadowMd: '0 3px 10px rgba(22,35,63,.16)',
+  shadowLg: '0 12px 32px rgba(22,35,63,.22)',
+  rCard: 26, rPanel: 18, rInner: 14, rPill: 999,
+}
+
+// 既有頁面（出貨轉換／商品對照表）沿用 C，改指向新品牌色票
 const C = {
-  bg: '#f7f8fa', card: '#ffffff', line: '#e3e6ea', ink: '#1f2933',
-  sub: '#6b7682', brand: '#1d7a5f', brandBg: '#e8f4ef',
-  warn: '#b4541a', warnBg: '#fbeee2', danger: '#c0392b',
+  bg: T.bg, card: T.surface, line: T.divider, ink: T.text,
+  sub: T.n600, brand: T.a, brandBg: T.a100,
+  warn: '#b4541a', warnBg: '#fbeee2', danger: T.danger,
 }
 
 const PLATFORMS = ['蝦皮', 'LINE商城', '酷澎', '官網']
 
 const GATEWAY_LIST = [
-  { key: 'coupang',        label: '酷澎' },
-  { key: 'shopee',         label: '蝦皮' },
-  { key: 'payuni_cc',      label: '官網 › 信用卡' },
-  { key: 'payuni_linepay', label: '官網 › LINE Pay', twoFile: true },
-  { key: 'linepay',        label: 'LINE商城 › LINE Pay' },
-  { key: 'lanxin',         label: 'LINE商城 › 信用卡' },
+  { key: 'coupang',        label: '酷澎',               dot: T.n500 },
+  { key: 'shopee',         label: '蝦皮',               dot: T.a500 },
+  { key: 'payuni_cc',      label: '官網 › 信用卡',      dot: T.g500 },
+  { key: 'payuni_linepay', label: '官網 › LINE Pay',    dot: T.g600, twoFile: true },
+  { key: 'linepay',        label: 'LINE商城 › LINE Pay', dot: T.a400 },
+  { key: 'lanxin',         label: 'LINE商城 › 信用卡',   dot: T.n400 },
 ]
 
 function PasswordGate({ children }) {
@@ -74,19 +96,30 @@ export default function App() {
   const [tab, setTab] = useState('convert')
   return (
     <PasswordGate>
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink,
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text,
       fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif' }}>
-      <header style={{ background: C.card, borderBottom: `1px solid ${C.line}`, padding: '14px 20px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <strong style={{ fontSize: 17 }}>和和研 · 電商出貨彙整</strong>
-          <nav style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
-            <TabBtn active={tab === 'convert'} onClick={() => setTab('convert')}>出貨轉換</TabBtn>
-            <TabBtn active={tab === 'mapping'} onClick={() => setTab('mapping')}>商品對照表</TabBtn>
-            <TabBtn active={tab === 'recon'} onClick={() => setTab('recon')}>金流對帳</TabBtn>
-          </nav>
+      <style>{`
+        .hhy-row:hover { filter: brightness(.97) }
+        .hhy-row td { transition: background .12s }
+        button:focus-visible { outline: 2px solid ${T.a}; outline-offset: 2px }
+        input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid ${T.a}; outline-offset: 1px }
+      `}</style>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 26, padding: '14px 32px',
+        background: T.n100, boxShadow: T.shadowSm, position: 'sticky', top: 0, zIndex: 20, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 20, fontWeight: 700, color: T.a700, whiteSpace: 'nowrap' }}>和和研 · 對帳系統</span>
+        <nav style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
+          <TabBtn active={tab === 'convert'} onClick={() => setTab('convert')}>出貨轉換</TabBtn>
+          <TabBtn active={tab === 'mapping'} onClick={() => setTab('mapping')}>商品對照表</TabBtn>
+          <TabBtn active={tab === 'recon'} onClick={() => setTab('recon')}>金流對帳</TabBtn>
+        </nav>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, color: T.n600, fontSize: 13 }}>
+          <span style={{ width: 30, height: 30, borderRadius: '50%', background: T.g300, display: 'grid',
+            placeItems: 'center', color: T.g700, fontSize: 13, fontWeight: 700 }}>和</span>
+          營運人員
         </div>
-      </header>
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: 20 }}>
+      </div>
+      <main style={{ maxWidth: tab === 'recon' ? 1280 : 1100, margin: '0 auto',
+        padding: tab === 'recon' ? '22px 32px 60px' : 20 }}>
         {tab === 'convert' && <ConvertPage />}
         {tab === 'mapping' && <MappingPage />}
         {tab === 'recon' && <ReconPage />}
@@ -99,9 +132,10 @@ export default function App() {
 function TabBtn({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
-      padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-      fontSize: 14, fontWeight: active ? 700 : 500,
-      background: active ? C.brandBg : 'transparent', color: active ? C.brand : C.sub,
+      padding: '7px 15px', borderRadius: T.rPill, border: 'none', cursor: 'pointer',
+      fontSize: 14, fontWeight: active ? 700 : 500, whiteSpace: 'nowrap',
+      fontFamily: 'inherit', transition: 'background .12s,color .12s',
+      background: active ? T.a : 'transparent', color: active ? T.bg : T.n600,
     }}>{children}</button>
   )
 }
@@ -434,59 +468,75 @@ function ReconPage() {
     setTxMsg(`${pairs.length} 筆訂單，回填 ${updated} 筆銷貨單號${invCount ? `・${invCount} 筆訂單發票號碼` : ''}，未對應 ${unmatched.length} 筆`)
   }
 
+  // 天心銷貨單回填 — 交給 GatewayWorkspace 放進「銷貨單號」步驟面板
+  const tianxinSlot = (
+    <div>
+      <div style={panelLead}>
+        比對天心「客戶訂單」與平台訂單編號，將 SA 單號寫入銷貨單號欄位（此步驟跨平台共用，一次上傳即可）。
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input ref={txFileRef} type="file" accept=".xlsx,.xls" onChange={readTxFile} style={{ display: 'none' }} />
+        <DropButton onClick={() => txFileRef.current.click()} filled={!!txRows}
+          label={txFileName || '選擇天心銷貨單'}
+          hint={txRows ? `✓ ${txRows.length} 列` : '尚未選擇檔案'} />
+        <button onClick={handleTianxin} style={btnPri}>比對回填</button>
+      </div>
+      <PanelMsg text={txMsg} bad={/錯誤|找不到|請/} />
+      {txResult?.unmatched?.length > 0 && (
+        <p style={{ marginTop: 4, marginBottom: 0, fontSize: 12, color: C.warn }}>
+          未對應：{txResult.unmatched.slice(0, 8).join('、')}
+          {txResult.unmatched.length > 8 && `…等 ${txResult.unmatched.length} 筆`}
+        </p>
+      )}
+    </div>
+  )
+
   return (
     <div>
-      {activeGateway !== 'shopee' && <Card>
-        <strong style={{ fontSize: 14 }}>上傳天心銷貨單（回填銷貨單號）</strong>
-        <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
-          比對「客戶訂單」與平台訂單編號，將 SA 單號寫入銷貨單號欄位（適用所有平台）
-        </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input ref={txFileRef} type="file" accept=".xlsx,.xls" onChange={readTxFile} style={{ display: 'none' }} />
-          <button onClick={() => txFileRef.current.click()} style={btnGhost}>{txFileName || '選擇天心銷貨單'}</button>
-          {txRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {txRows.length} 列</span>}
-          <button onClick={handleTianxin} style={btnPrimary}>比對回填</button>
-        </div>
-        {txMsg && (
-          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-            color: txMsg.includes('錯誤') || txMsg.includes('找不到') ? C.danger : C.brand }}>
-            {txMsg}
-          </p>
-        )}
-        {txResult?.unmatched?.length > 0 && (
-          <p style={{ marginTop: 4, marginBottom: 0, fontSize: 12, color: C.warn }}>
-            未對應：{txResult.unmatched.slice(0, 8).join('、')}
-            {txResult.unmatched.length > 8 && `…等 ${txResult.unmatched.length} 筆`}
-          </p>
-        )}
-      </Card>}
-
-      <Card style={{ marginBottom: 0, borderRadius: '12px 12px 0 0' }}>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          <TabBtn active={activeGateway === '__guide__'} onClick={() => setActiveGateway('__guide__')}>說明</TabBtn>
-          {GATEWAY_LIST.map(g => (
-            <TabBtn key={g.key} active={activeGateway === g.key} onClick={() => setActiveGateway(g.key)}>
+      {/* ── 通路切換列 ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+        <span style={{ fontSize: 12, letterSpacing: '.08em', color: T.n600, marginRight: 4 }}>金流通路</span>
+        {[...GATEWAY_LIST, { key: '__guide__', label: '說明', dot: T.gold }].map(g => {
+          const on = activeGateway === g.key
+          return (
+            <button key={g.key} onClick={() => setActiveGateway(g.key)} aria-pressed={on}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 15px',
+                borderRadius: T.rPill, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap',
+                fontFamily: 'inherit',
+                border: `1px solid ${on ? T.a : T.divider}`,
+                background: on ? T.a : 'transparent',
+                color: on ? T.bg : T.n700,
+                transition: 'background .12s,color .12s,border-color .12s',
+              }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: on ? T.bg : (g.dot || T.n400) }} />
               {g.label}
-            </TabBtn>
-          ))}
-        </div>
-      </Card>
+            </button>
+          )
+        })}
+      </div>
+
       {activeGateway === '__guide__' ? (
-        <Card>
+        <div style={{ background: T.n100, borderRadius: T.rCard, boxShadow: T.shadowSm, padding: '24px 28px' }}>
+          <h3 style={{ margin: '0 0 14px', fontSize: 22, color: T.navy }}>金流對帳流程說明</h3>
           <img
             src="recon-guide.png"
             alt="金流對帳說明"
-            style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+            style={{ maxWidth: '100%', borderRadius: T.rPanel, display: 'block' }}
           />
-        </Card>
+        </div>
       ) : (
-        <GatewayWorkspace gateway={activeGateway} key={activeGateway} />
+        <GatewayWorkspace
+          gateway={activeGateway}
+          key={activeGateway}
+          tianxinSlot={activeGateway === 'shopee' ? null : tianxinSlot}
+        />
       )}
     </div>
   )
 }
 
-function GatewayWorkspace({ gateway }) {
+function GatewayWorkspace({ gateway, tianxinSlot }) {
   const gwInfo = GATEWAY_LIST.find(g => g.key === gateway) || {}
   const isTwoFile = !!gwInfo.twoFile
   const isLinePayOfficial = gateway === 'payuni_linepay'
@@ -503,6 +553,7 @@ function GatewayWorkspace({ gateway }) {
   const [fileName2, setFileName2] = useState('')
   const [reconMsg, setReconMsg] = useState('')
   const [reconResult, setReconResult] = useState(null)
+  const [createMissing, setCreateMissing] = useState(true)   // 對帳單比對不到的訂單自動建檔
   const fileRef1 = useRef(null)
   const fileRef2 = useRef(null)
 
@@ -605,14 +656,22 @@ function GatewayWorkspace({ gateway }) {
   const [ordInvEntryChecked, setOrdInvEntryChecked] = useState(new Set())
   const [ordInvEntryMsg, setOrdInvEntryMsg] = useState('')
 
-  const [sopHtml, setSopHtml] = useState('')
+  // SOP 依「對帳步驟」分卡儲存：{ [stepKey]: { html, img } }
+  // 沿用 gateway_sops.html_content 欄位存 JSON（{v:1,steps}），不必動 DB schema
+  const [sopSteps, setSopSteps] = useState({})
+  const [sopLegacy, setSopLegacy] = useState('')   // 舊版單一 HTML，塞進第一步以免遺失
   const [sopEditing, setSopEditing] = useState(false)
   const [sopSaving, setSopSaving] = useState(false)
+  const [sopUploading, setSopUploading] = useState(null)
+  const [sopMsg, setSopMsg] = useState('')
   const [sopLinkForm, setSopLinkForm] = useState(false)
   const [sopLinkUrl, setSopLinkUrl] = useState('')
   const [sopLinkText, setSopLinkText] = useState('')
-  const sopRef = useRef(null)
+  const sopRefs = useRef({})
   const sopSavedRange = useRef(null)
+  // 截圖的 Storage 刪除一律延後到「完成/取消」才執行，避免取消後 DB 仍指向已刪檔案而破圖
+  const sopNewPaths = useRef([])   // 本次編輯上傳的：取消才刪
+  const sopOldPaths = useRef([])   // 本次編輯換掉/移除的舊檔：存檔才刪
 
   useEffect(() => { loadOrders() }, [])
   useEffect(() => {
@@ -641,17 +700,26 @@ function GatewayWorkspace({ gateway }) {
     }
   }, [viewBankGroupKey])
   useEffect(() => {
-    setSopHtml('')
-    setSopEditing(false)
-    setSopLinkForm(false)
-    supabase.from('gateway_sops').select('html_content').eq('gateway', gateway).maybeSingle()
-      .then(({ data }) => setSopHtml(data?.html_content || ''))
+    setSopEditing(false); setSopLinkForm(false); setSopMsg('')
+    sopNewPaths.current = []; sopOldPaths.current = []
+    reloadSop()
   }, [gateway])
+  // 元件卸載（例如切換通路）時，把這次編輯中上傳、但沒存檔的截圖清掉
+  useEffect(() => () => {
+    const orphans = sopNewPaths.current
+    if (orphans.length) supabase.storage.from('invoices').remove(orphans)
+  }, [])
+  // 進入編輯模式時把內容灌進各步驟的 contentEditable（之後不再同步，避免蓋掉打字中的內容）
   useEffect(() => {
-    if (sopEditing && sopRef.current) {
-      sopRef.current.innerHTML = sopHtml
-      sopRef.current.focus()
+    if (!sopEditing) return
+    let first = null
+    for (const key of Object.keys(sopRefs.current)) {
+      const el = sopRefs.current[key]
+      if (!el) continue
+      el.innerHTML = sopStepData(key).html
+      if (!first) first = el
     }
+    first?.focus()
   }, [sopEditing])
 
   async function loadOrders() {
@@ -839,21 +907,123 @@ function GatewayWorkspace({ gateway }) {
     loadOrders()
   }
 
+  // 單一步驟的 SOP 內容；舊版單一 HTML 併入第一步，避免遺失
+  function sopStepData(key) {
+    const d = sopSteps[key]
+    if (d) return { html: d.html || '', img: d.img || null }
+    if (sopLegacy && key === stepDefs[0]?.key) return { html: sopLegacy, img: null }
+    return { html: '', img: null }
+  }
+
+  // 把各步驟編輯器目前的 DOM 內容收回 state（上傳截圖前後都要，避免打字中的內容被覆蓋）
+  function collectSopSteps(base) {
+    const next = { ...base }
+    for (const s of stepDefs) {
+      const el = sopRefs.current[s.key]
+      const prev = next[s.key] || sopStepData(s.key)
+      next[s.key] = { html: el ? el.innerHTML : (prev.html || ''), img: prev.img || null }
+    }
+    return next
+  }
+
+  // 從 DB 讀回這條金流的 SOP（切換通路、取消編輯都用它）
+  async function reloadSop() {
+    const { data } = await supabase.from('gateway_sops')
+      .select('html_content').eq('gateway', gateway).maybeSingle()
+    const raw = data?.html_content || ''
+    setSopSteps({}); setSopLegacy('')
+    if (!raw) return
+    try {
+      const p = JSON.parse(raw)
+      if (p && p.v === 1 && p.steps) { setSopSteps(p.steps); return }
+    } catch { /* 不是 JSON → 當作舊版 HTML */ }
+    setSopLegacy(raw)
+  }
+
+  // 舊檔標記待刪；若舊檔正好是本次編輯剛傳的，直接刪掉不必等存檔
+  function markSopOldPath(oldPath) {
+    if (!oldPath) return
+    const i = sopNewPaths.current.indexOf(oldPath)
+    if (i >= 0) {
+      sopNewPaths.current.splice(i, 1)
+      supabase.storage.from('invoices').remove([oldPath])
+    } else if (!sopOldPaths.current.includes(oldPath)) {
+      sopOldPaths.current.push(oldPath)
+    }
+  }
+
   async function saveSop() {
-    const html = sopRef.current?.innerHTML || ''
-    setSopSaving(true)
-    await supabase.from('gateway_sops')
-      .upsert({ gateway, html_content: html, updated_at: new Date().toISOString() }, { onConflict: 'gateway' })
-    setSopHtml(html)
+    const steps = collectSopSteps(sopSteps)
+    setSopSaving(true); setSopMsg('')
+    const { error } = await supabase.from('gateway_sops')
+      .upsert({ gateway, html_content: JSON.stringify({ v: 1, steps }), updated_at: new Date().toISOString() },
+        { onConflict: 'gateway' })
     setSopSaving(false)
+    if (error) { setSopMsg('儲存失敗：' + error.message); return }
+    // 存檔成功才真的刪掉被換掉／移除的舊截圖
+    const stale = sopOldPaths.current
+    sopNewPaths.current = []; sopOldPaths.current = []
+    if (stale.length) {
+      const { error: rmErr } = await supabase.storage.from('invoices').remove(stale)
+      if (rmErr) console.warn('Storage remove:', rmErr.message)
+    }
+    setSopSteps(steps)
+    setSopLegacy('')
     setSopEditing(false)
     setSopLinkForm(false)
   }
 
-  function cancelSop() {
+  async function cancelSop() {
+    // 取消：刪掉本次上傳的檔，舊檔原封不動，再從 DB 讀回原內容
+    const orphans = sopNewPaths.current
+    sopNewPaths.current = []; sopOldPaths.current = []
     setSopEditing(false)
     setSopLinkForm(false)
+    setSopMsg('')
+    if (orphans.length) {
+      const { error: rmErr } = await supabase.storage.from('invoices').remove(orphans)
+      if (rmErr) console.warn('Storage remove:', rmErr.message)
+    }
+    await reloadSop()
   }
+
+  // 每步一張截圖，存 Storage 的 sop/ 夾，URL 記在該步驟
+  async function uploadSopStepImage(key, file) {
+    if (!file) return
+    setSopUploading(key); setSopMsg('')
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const path = `sop/${gateway}_${key}_${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('invoices').upload(path, file)
+    if (upErr) { setSopUploading(null); setSopMsg(`截圖上傳失敗：${upErr.message}`); return }
+    sopNewPaths.current.push(path)
+    markSopOldPath(storagePath(sopStepData(key).img))
+    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+    setSopSteps(p => {
+      const next = collectSopSteps(p)
+      next[key] = { ...next[key], img: data.publicUrl }
+      return next
+    })
+    setSopUploading(null)
+  }
+
+  function removeSopStepImage(key) {
+    markSopOldPath(storagePath(sopStepData(key).img))
+    setSopSteps(p => {
+      const next = collectSopSteps(p)
+      next[key] = { ...next[key], img: null }
+      return next
+    })
+  }
+
+  // 關閉抽屜：若還在編輯中，等同按「取消」（清掉未存檔的截圖、還原內容）
+  function closeSopDrawer() {
+    if (sopEditing) cancelSop()
+    else { setSopLinkForm(false); setSopMsg('') }
+    setSopOpen(false)
+  }
+
+  // 記住游標停在哪一張步驟卡，插入連結時才知道要塞回哪個編輯器
+  const sopFocusEl = useRef(null)
 
   function openSopLinkForm() {
     const sel = window.getSelection()
@@ -871,14 +1041,15 @@ function GatewayWorkspace({ gateway }) {
     const url = sopLinkUrl.trim()
     if (!url) { setSopLinkForm(false); return }
     const text = sopLinkText.trim() || url
-    sopRef.current?.focus()
+    const target = sopFocusEl.current || sopRefs.current[stepDefs[0]?.key]
+    target?.focus()
     if (sopSavedRange.current) {
       const sel = window.getSelection()
       if (sel) { sel.removeAllRanges(); sel.addRange(sopSavedRange.current) }
       sopSavedRange.current = null
     }
     document.execCommand('insertHTML', false,
-      `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1d7a5f;text-decoration:underline">${text}</a>`)
+      `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:${T.a700};text-decoration:underline">${text}</a>`)
     setSopLinkForm(false)
     setSopLinkUrl('')
     setSopLinkText('')
@@ -959,9 +1130,12 @@ function GatewayWorkspace({ gateway }) {
         if (!rows1) { setReconMsg('請先上傳對帳單'); return }
         parsed = RECON_PARSERS[gateway](rows1)
       }
-      const result = await reconcile(supabase, gateway, parsed)
+      const result = await reconcile(supabase, gateway, parsed, { createMissing })
       setReconResult(result)
-      setReconMsg(`比對 ${parsed.length} 筆、回填 ${result.updated} 筆、未對應 ${result.unmatched.length} 筆`)
+      const parts = [`比對 ${parsed.length} 筆`, `回填 ${result.updated} 筆`]
+      if (createMissing) parts.push(`新增 ${result.inserted} 筆`)
+      else parts.push(`未對應 ${result.unmatched.length} 筆`)
+      setReconMsg(parts.join('、'))
       loadOrders()
     } catch(e) { setReconMsg('錯誤：' + e.message) }
   }
@@ -1179,9 +1353,6 @@ function GatewayWorkspace({ gateway }) {
   function toggleSelect(id) {
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
-  function toggleSelectAll() {
-    setSelectedIds(prev => prev.size === shownOrders.length ? new Set() : new Set(shownOrders.map(o => o.id)))
-  }
   async function deleteSelected() {
     if (!selectedIds.size) return
     if (!window.confirm(`確定要刪除選取的 ${selectedIds.size} 筆訂單？此操作無法復原。`)) return
@@ -1278,7 +1449,6 @@ function GatewayWorkspace({ gateway }) {
     txInvoiceGroups[o.tx_fee_invoice_no].count++
   })
 
-  const INV_BG = ['#e6f4f0', '#e8edf8']   // 交替淡綠 / 淡藍
   const invColorIdx = {}
   let _ci = 0
   Object.keys(invoiceGroups).forEach(k => { invColorIdx[k] = _ci++ % 2 })
@@ -1300,236 +1470,1144 @@ function GatewayWorkspace({ gateway }) {
   const invIsMatch = invDiff != null && Math.abs(invDiff) < 0.01
   const hasInvOrders = invPreview?.orders?.length > 0 || (invMethod === 'manual' && checkedIds.size > 0)
 
-  return (
+  // ── 新增 UI 狀態（版面用，不影響既有邏輯）──
+  const [activeStepKey, setActiveStepKey] = useState(null)
+  const [query, setQuery] = useState('')
+  const [sopOpen, setSopOpen] = useState(false)
+
+  // ── 進度總覽：依 recon_status 統計（跟隨月份篩選）──
+  const heroOrders = filterMonth ? orders.filter(o => (o.order_date || '').slice(0, 7) === filterMonth) : orders
+  const cShipped = heroOrders.filter(o => !o.recon_status || o.recon_status === '已出貨' || o.recon_status === '待出貨').length
+  const cSettled = heroOrders.filter(o => o.recon_status === '平台已結算').length
+  const cPaid    = heroOrders.filter(o => o.recon_status === '已入帳').length
+  const cDone    = heroOrders.filter(o => o.recon_status === '已對帳').length
+  const heroTotal = heroOrders.length
+  const donePct = heroTotal ? Math.round(cDone / heroTotal * 100) : 0
+  const segW = n => (heroTotal ? (n / heroTotal * 100) : 0)
+
+  // ── 對帳步驟：步驟數依金流而定，完成狀態由訂單資料推導 ──
+  const hasBankStep = isLineMallLinePay || isLanxin || isLinePayOfficial || isPayuniCC || isShopee
+  const nOrders = orders.length
+  const lack = fn => orders.filter(fn).length
+  const mkStep = (key, title, missingCount, unit) => ({
+    key, title,
+    done: nOrders > 0 && missingCount === 0,
+    sub: nOrders === 0 ? '尚無訂單' : missingCount === 0 ? '已完成' : `${missingCount} 筆待${unit}`,
+  })
+
+  // 步驟順序＝目前線上版的區塊順序（非設計稿的示意順序），勿依設計稿重排：
+  // 蝦皮：訂單匯入 → 銷貨單號 → 撥款明細 → 訂單發票 → 發票核對 → 玉山銀行對帳
+  // 官網LINE Pay：銷貨單號 → 撥款明細 → 交易處理費 → 玉山銀行對帳 → 發票核對 → 交易處理費發票
+  //   （交易處理費緊接撥款明細，見 commit 7a19e65；蝦皮的銀行對帳在最後）
+  const bankStep = () => mkStep('bank', '玉山銀行對帳',
+    lack(o => o.recon_status !== '已入帳' && o.recon_status !== '已對帳'), '入帳')
+
+  const stepDefs = []
+  if (isShopee) stepDefs.push({
+    key: 'shopeeOrd', title: '訂單匯入',
+    done: nOrders > 0, sub: nOrders > 0 ? `${nOrders} 筆已匯入` : '待匯入',
+  })
+  stepDefs.push(mkStep('sa', '銷貨單號', lack(o => !o.sa_no), '回填'))
+  stepDefs.push(mkStep('recon', '上傳撥款明細', lack(o => o.fee_total == null), '回填'))
+  if (isLinePayOfficial) stepDefs.push(mkStep('txfee', '交易處理費', lack(o => o.tx_fee == null), '補'))
+  if (hasBankStep && !isShopee) stepDefs.push(bankStep())
+  if (isShopee) stepDefs.push(mkStep('ordInv', '訂單發票', lack(o => !o.order_invoice_no), '開立'))
+  stepDefs.push(mkStep('feeInv', '發票核對', lack(o => !o.fee_invoice_no), '歸戶'))
+  if (isLinePayOfficial) stepDefs.push(mkStep('txFeeInv', '交易處理費發票', lack(o => !o.tx_fee_invoice_no), '歸戶'))
+  if (isShopee) stepDefs.push(bankStep())
+
+  const firstTodoKey = (stepDefs.find(s => !s.done) || stepDefs[0] || {}).key
+  const curStep = stepDefs.some(s => s.key === activeStepKey) ? activeStepKey : firstTodoKey
+  const stepCols = stepDefs.length <= 4 ? stepDefs.length : Math.ceil(stepDefs.length / 2)
+
+  // ── 每步的「資料來源」提示（沿用既有後台操作路徑文字）──
+  const SOURCE_HINT = {
+    recon: isPayuniCC ? '統一金流 → 交易動態 → 入帳表 → 選擇期間 → 全部 → 查詢'
+      : isLineMallLinePay ? 'LINE PAY 撥款明細：清算/撥款 → 檢視詳細記錄 → 預計撥款日 → 選擇期間 → Excel → 下載報表'
+      : isLanxin ? '藍新金流 → 交易查詢 → 預計撥款日 → 開始查詢 → 下載查詢結果'
+      : isLinePayOfficial ? 'Line Pay 撥款明細：存款/撥款 → 預計撥款日 → 選擇期間 → Excel；Payuni：交易動態 → 交易表 → 電子錢包 → 查詢'
+      : '',
+    bank: '玉山網銀 → 帳戶明細 → 下載對帳單',
+    txfee: 'Payuni → UNi帳戶 → 帳戶明細 → 查詢日期 → 查詢',
+  }
+
+  // ── 訂單表：搜尋 + 狀態 chips ──
+  const q = query.trim().toUpperCase()
+  const searched = q
+    ? shownOrders.filter(o => String(o.ref_no || '').toUpperCase().includes(q) || String(o.sa_no || '').toUpperCase().includes(q))
+    : shownOrders
+  const statusCounts = {}
+  orders.forEach(o => { const k = o.recon_status || '待出貨'; statusCounts[k] = (statusCounts[k] || 0) + 1 })
+  const chipDefs = [{ label: '全部', value: '', count: orders.length },
+    ...STATUSES.map(s => ({ label: s, value: s, count: statusCounts[s] || 0 }))]
+
+  // 上傳 SOP 截圖：存 Storage 後把 <img> 插進 contentEditable
+  const stepPanel = {}
+
+  // ── 面板：蝦皮訂單匯入 ──
+  stepPanel.shopeeOrd = !isShopee ? null : (
     <div>
-      {/* 蝦皮訂單匯入 */}
-      {isShopee && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>上傳蝦皮「我的銷售」</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
-            上傳蝦皮訂單 Excel，自動讀取訂單編號、訂單成立日期、買家總支付金額，重複訂單自動略過
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input ref={shopeeOrdFileRef} type="file" accept=".xlsx,.xls"
-              onChange={e => {
-                const f = e.target.files?.[0]; if (!f) return
-                setShopeeOrdFileName(f.name)
-                const rd = new FileReader()
-                rd.onload = ev => {
-                  const wb = XLSX.read(ev.target.result, { type: 'array' })
-                  const ws = wb.Sheets[wb.SheetNames[0]]
-                  const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-                  // 跳過第一列（標題），保留 A欄有值的列
-                  setShopeeOrdRows(all.slice(1).filter(r => String(r[0] || '').trim()))
-                }
-                rd.readAsArrayBuffer(f)
-              }} style={{ display: 'none' }} />
-            <button onClick={() => shopeeOrdFileRef.current.click()} style={btnGhost}>
-              {shopeeOrdFileName || '選擇蝦皮訂單 Excel'}
-            </button>
-            {shopeeOrdRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {shopeeOrdRows.length} 列</span>}
-            <button onClick={handleShopeeOrdImport} style={btnPrimary}>匯入</button>
-          </div>
-          {shopeeOrdMsg && (
-            <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-              color: shopeeOrdMsg.includes('錯誤') || shopeeOrdMsg.includes('找不到') ? C.danger : C.brand }}>
-              {shopeeOrdMsg}
-            </p>
-          )}
-        </Card>
-      )}
+      <div style={panelLead}>上傳蝦皮「我的銷售」Excel，自動讀取訂單編號、訂單成立日期、買家總支付金額，重複訂單自動略過。</div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input ref={shopeeOrdFileRef} type="file" accept=".xlsx,.xls"
+          onChange={e => {
+            const f = e.target.files?.[0]; if (!f) return
+            setShopeeOrdFileName(f.name)
+            const rd = new FileReader()
+            rd.onload = ev => {
+              const wb = XLSX.read(ev.target.result, { type: 'array' })
+              const ws = wb.Sheets[wb.SheetNames[0]]
+              const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+              // 跳過第一列（標題），保留 A欄有值的列
+              setShopeeOrdRows(all.slice(1).filter(r => String(r[0] || '').trim()))
+            }
+            rd.readAsArrayBuffer(f)
+          }} style={{ display: 'none' }} />
+        <DropButton onClick={() => shopeeOrdFileRef.current.click()}
+          filled={!!shopeeOrdRows} label={shopeeOrdFileName || '選擇蝦皮訂單 Excel'}
+          hint={shopeeOrdRows ? `✓ ${shopeeOrdRows.length} 列` : '尚未選擇檔案'} />
+        <button onClick={handleShopeeOrdImport} style={btnPri}>匯入</button>
+      </div>
+      <PanelMsg text={shopeeOrdMsg} bad={/錯誤|找不到/} />
+    </div>
+  )
 
-      {/* 蝦皮天心銷貨單比對 */}
-      {isShopee && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>上傳天心銷貨單（回填銷貨單號 ＋ 訂單發票號碼）</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 10px' }}>
-            比對「客戶訂單」與蝦皮平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input ref={shopeeTxFileRef} type="file" accept=".xlsx,.xls"
-              onChange={e => readFile(e, setShopeeTxRows, setShopeeTxFileName)} style={{ display: 'none' }} />
-            <button onClick={() => shopeeTxFileRef.current.click()} style={btnGhost}>
-              {shopeeTxFileName || '選擇天心銷貨單'}
-            </button>
-            {shopeeTxRows && <span style={{ fontSize: 12, color: C.brand }}>✓ {shopeeTxRows.length} 列</span>}
-            <button onClick={handleShopeeTxImport} style={btnPrimary}>比對回填</button>
-          </div>
-          {shopeeTxMsg && (
-            <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-              color: shopeeTxMsg.includes('錯誤') || shopeeTxMsg.includes('失敗') ? C.danger : C.brand }}>
-              {shopeeTxMsg}
-            </p>
-          )}
-        </Card>
-      )}
+  // ── 面板：銷貨單號（天心）──
+  stepPanel.sa = isShopee ? (
+    <div>
+      <div style={panelLead}>比對「客戶訂單」與蝦皮平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼。</div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input ref={shopeeTxFileRef} type="file" accept=".xlsx,.xls"
+          onChange={e => readFile(e, setShopeeTxRows, setShopeeTxFileName)} style={{ display: 'none' }} />
+        <DropButton onClick={() => shopeeTxFileRef.current.click()}
+          filled={!!shopeeTxRows} label={shopeeTxFileName || '選擇天心銷貨單'}
+          hint={shopeeTxRows ? `✓ ${shopeeTxRows.length} 列` : '尚未選擇檔案'} />
+        <button onClick={handleShopeeTxImport} style={btnPri}>比對回填</button>
+      </div>
+      <PanelMsg text={shopeeTxMsg} bad={/錯誤|失敗/} />
+    </div>
+  ) : (tianxinSlot || null)
 
-      {/* 上傳撥款明細 */}
-      <Card>
-        <strong style={{ fontSize: 14 }}>{isShopee ? '上傳蝦皮「我的進帳」' : isPayuniCC ? '上傳入帳表' : '上傳撥款明細'}</strong>
-        {isPayuniCC && (
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
-            統一金流 → 交易動態 → 入帳表 → 選擇期間 → 全部 → 查詢
-          </p>
+  // ── 面板：上傳撥款明細 ──
+  stepPanel.recon = (
+    <div>
+      <div style={panelLead}>
+        {isShopee ? '上傳蝦皮「我的進帳」，系統比對訂單編號並回填手續費、應入帳與代收付發票金額。'
+          : isPayuniCC ? '上傳 PayUni 入帳表，以去槓號的商店訂單編號比對，回填手續費與入帳金額。'
+          : isTwoFile ? '上傳兩份撥款報表，系統以支付對應碼勾稽兩表，回填手續費與應入帳金額。'
+          : '上傳撥款明細，系統自動比對平台訂單、回填手續費與應入帳金額。'}
+      </div>
+      {SOURCE_HINT.recon && <SourceHint text={SOURCE_HINT.recon} onSop={() => setSopOpen(true)} />}
+      <div style={{ display: 'grid', gridTemplateColumns: isTwoFile ? '1fr 1fr' : '1fr', gap: 14, marginTop: 14 }}>
+        {isTwoFile ? (
+          <>
+            <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
+            <DropButton onClick={() => fileRef1.current.click()} filled={!!rows1}
+              label={fileName1 || 'Line Pay撥款明細'} hint={rows1 ? `✓ ${rows1.length} 列` : '尚未選擇檔案'} block />
+            <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
+            <DropButton onClick={() => fileRef2.current.click()} filled={!!rows2}
+              label={fileName2 || 'Payuni電子錢包'} hint={rows2 ? `✓ ${rows2.length} 列` : '尚未選擇檔案'} block />
+          </>
+        ) : (
+          <>
+            <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
+            <DropButton onClick={() => fileRef1.current.click()} filled={!!rows1}
+              label={fileName1 || (isShopee ? '選擇蝦皮「我的進帳」' : isPayuniCC ? '選擇入帳表' : '選擇對帳單')}
+              hint={rows1 ? `✓ ${rows1.length} 列` : '尚未選擇檔案'} block />
+          </>
         )}
-        {isLineMallLinePay && (
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
-            LINE PAY撥款明細：清算/撥款 → 檢視詳細記錄 → 預計撥款日 → 選擇期間 → Excel → 下載報表
-          </p>
-        )}
-        {isLanxin && (
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0' }}>
-            藍新金流 → 交易查詢 → 預計撥款日 → 開始查詢 → 下載查詢結果
-          </p>
-        )}
-        {isLinePayOfficial && (
-          <p style={{ fontSize: 12, color: C.sub, margin: '4px 0 0', lineHeight: 1.8 }}>
-            Line Pay撥款明細：存款/撥款 → 預計撥款日 → 選擇期間 → Excel → 下載報表<br />
-            Payuni交易動態明細_電子錢包：交易動態 → 交易表 → 選擇期間 → 電子錢包 → 查詢
-          </p>
-        )}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
-          {isTwoFile ? (
-            <>
-              <div>
-                <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
-                <button onClick={() => fileRef1.current.click()} style={btnGhost}>{fileName1 || 'Line Pay撥款明細'}</button>
-                {rows1 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows1.length} 列</span>}
-              </div>
-              <div>
-                <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
-                <button onClick={() => fileRef2.current.click()} style={btnGhost}>{fileName2 || 'Payuni電子錢包'}</button>
-                {rows2 && <span style={{ fontSize: 12, color: C.brand, marginLeft: 6 }}>✓ {rows2.length} 列</span>}
-              </div>
-            </>
-          ) : (
-            <>
-              <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
-              <button onClick={() => fileRef1.current.click()} style={btnGhost}>{fileName1 || '選擇對帳單'}</button>
-              {rows1 && <span style={{ fontSize: 12, color: C.brand }}>✓ {rows1.length} 列</span>}
-            </>
-          )}
-          <button onClick={handleReconcile} style={btnPrimary}>比對回填</button>
-        </div>
-        {reconMsg && (
-          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-            color: reconMsg.includes('錯誤') || reconMsg.includes('請') ? C.danger : C.brand }}>
-            {reconMsg}
-          </p>
-        )}
-        {reconResult && reconResult.updated > 0 && (
-          <div style={{ marginTop: 10, padding: '10px 14px', background: C.brandBg, borderRadius: 8,
-            display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13 }}>
-              手續費合計：<strong>{reconResult.feeTotal.toLocaleString()}</strong>
-              <span style={{ fontSize: 11, color: C.sub, marginLeft: 4 }}>（供發票核對）</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16, padding: '14px 18px',
+        background: reconResult ? T.g100 : T.n200, borderRadius: T.rInner, flexWrap: 'wrap' }}>
+        {reconResult && (reconResult.updated > 0 || reconResult.inserted > 0) ? (
+          <>
+            <span style={{ fontSize: 13 }}>手續費合計 <strong style={{ fontSize: 16 }}>NT$ {reconResult.feeTotal.toLocaleString()}</strong>
+              <span style={{ fontSize: 11, color: T.n600, marginLeft: 4 }}>（供發票核對）</span></span>
+            <span style={{ fontSize: 13 }}>預計撥款 <strong style={{ fontSize: 16 }}>NT$ {reconResult.payableTotal.toLocaleString()}</strong>
+              <span style={{ fontSize: 11, color: T.n600, marginLeft: 4 }}>（供玉山對帳單核對）</span></span>
+            <span style={{ fontSize: 12, color: T.g700 }}>
+              ✓ 已回填 {reconResult.updated} 筆{createMissing ? ` · 新增 ${reconResult.inserted} 筆` : ` · 未對應 ${reconResult.unmatched.length} 筆`}
             </span>
-            <span style={{ fontSize: 13 }}>
-              預計撥款金額：<strong>{reconResult.payableTotal.toLocaleString()}</strong>
-              <span style={{ fontSize: 11, color: C.sub, marginLeft: 4 }}>（供玉山對帳單核對）</span>
-            </span>
-          </div>
+          </>
+        ) : (
+          <span style={{ fontSize: 13, color: T.n600 }}>選好檔案後按「比對回填」，系統會寫回手續費與應入帳。</span>
         )}
-        {reconResult?.unmatched?.length > 0 && (
-          <p style={{ marginTop: 6, marginBottom: 0, fontSize: 12, color: C.warn }}>
-            未對應：{reconResult.unmatched.slice(0, 5).join('、')}
-            {reconResult.unmatched.length > 5 && `…等 ${reconResult.unmatched.length} 筆`}
-          </p>
-        )}
-      </Card>
-
-      {isLinePayOfficial && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>官網 LINE Pay 交易處理費</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            Payuni帳戶明細：UNi帳戶 → 帳戶明細 → 查詢日期 → 查詢
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-            <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls"
-              onChange={readTxFeeAccFile} />
-            <button onClick={() => txFeeAccFileRef.current.click()} style={btnGhost}>上傳帳戶明細</button>
-            {txFeeAccFileName && <span style={{ fontSize: 12, color: C.sub }}>{txFeeAccFileName}</span>}
-          </div>
-          {txFeeAccRows.length > 0 && (
-            <div style={{ marginTop: 12, overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: '#f5f5f5' }}>
-                    {['處理序號', '日期', '費用', '入帳日'].map(h => (
-                      <th key={h} style={{ ...th, fontWeight: 600 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {txFeeAccRows.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ ...td, fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
-                      <td style={td}>{r.date || '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', color: C.danger }}>-{r.fee.toLocaleString()}</td>
-                      <td style={td}>{txFeeAccInDate[i] || '—'}</td>
-                    </tr>
-                  ))}
-                  <tr style={{ fontWeight: 600, borderTop: '1px solid #ddd' }}>
-                    <td colSpan={2} style={{ ...td, color: C.sub, fontSize: 11 }}>合計</td>
-                    <td style={{ ...td, textAlign: 'right', color: C.danger }}>
-                      -{txFeeAccRows.reduce((s, r) => s + r.fee, 0).toLocaleString()}
-                    </td>
-                    <td style={td} />
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-          {txFeeAccRows.length === 0 && txFeeAccFileName && (
-            <p style={{ fontSize: 12, color: C.warn, marginTop: 8 }}>未找到「執行方式 = 資訊服務」的資料</p>
-          )}
-        </Card>
+        <button onClick={handleReconcile} style={{ ...btnPri, marginLeft: 'auto' }}>
+          {reconResult ? '重新比對回填' : '比對回填'}
+        </button>
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, color: T.n700, cursor: 'pointer' }}>
+        <input type="checkbox" checked={createMissing} onChange={e => setCreateMissing(e.target.checked)} />
+        未匯入的訂單自動建檔（比對不到時，直接以對帳單資料新增；已存在則略過）
+      </label>
+      <PanelMsg text={reconMsg} bad={/錯誤|請/} />
+      {createMissing && reconResult?.insertedKeys?.length > 0 && (
+        <p style={{ marginTop: 6, marginBottom: 0, fontSize: 12, color: T.g700 }}>
+          新增訂單：{reconResult.insertedKeys.slice(0, 5).join('、')}
+          {reconResult.insertedKeys.length > 5 && `…等 ${reconResult.insertedKeys.length} 筆`}
+        </p>
       )}
+      {!createMissing && reconResult?.unmatched?.length > 0 && (
+        <p style={{ marginTop: 6, marginBottom: 0, fontSize: 12, color: C.warn }}>
+          未對應：{reconResult.unmatched.slice(0, 5).join('、')}
+          {reconResult.unmatched.length > 5 && `…等 ${reconResult.unmatched.length} 筆`}
+        </p>
+      )}
+    </div>
+  )
 
-      {/* 對帳狀態清單 */}
-      <Card>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inp, width: 'auto' }}>
-              <option value="">全部月份</option>
-              {months.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
-              <option value="">全部狀態</option>
-              {STATUSES.map(s => <option key={s}>{s}</option>)}
-            </select>
-            <span style={{ fontSize: 13, color: C.sub }}>{shownOrders.length} 筆</span>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {selectedIds.size > 0 && (
-              <button onClick={deleteSelected} style={{ ...btnGhost, color: C.danger, borderColor: C.danger }}>
-                刪除 {selectedIds.size} 筆
-              </button>
-            )}
-            {deleteMsg && <span style={{ fontSize: 12, color: deleteMsg.includes('錯誤') ? C.danger : C.sub }}>{deleteMsg}</span>}
-            <button onClick={loadOrders} style={btnGhost}>重新整理</button>
-            <button onClick={exportOrders} style={btnPrimary}>匯出</button>
-          </div>
-        </div>
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '60vh' }}>
+  // ── 面板：交易處理費（官網 LINE Pay）──
+  stepPanel.txfee = !isLinePayOfficial ? null : (
+    <div>
+      <div style={panelLead}>上傳 Payuni 帳戶明細，挑出「執行方式＝資訊服務」的交易處理費。</div>
+      <SourceHint text={SOURCE_HINT.txfee} onSop={() => setSopOpen(true)} />
+      <div style={{ marginTop: 14 }}>
+        <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readTxFeeAccFile} />
+        <DropButton onClick={() => txFeeAccFileRef.current.click()} filled={txFeeAccRows.length > 0}
+          label={txFeeAccFileName || '上傳帳戶明細'}
+          hint={txFeeAccRows.length > 0 ? `✓ ${txFeeAccRows.length} 筆` : '尚未選擇檔案'} />
+      </div>
+      {txFeeAccRows.length > 0 && (
+        <div style={{ marginTop: 14, border: `1px solid ${T.divider}`, borderRadius: T.rInner, overflow: 'hidden' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
             <thead>
               <tr>
-                <th style={th}></th>
-                <th style={th}>
+                {['處理序號', '日期', '費用', '入帳日'].map((h, i) => (
+                  <th key={h} style={{ ...thT, position: 'static', textAlign: i === 2 ? 'right' : 'left' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {txFeeAccRows.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ ...tdT, fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
+                  <td style={tdT}>{r.date || '—'}</td>
+                  <td style={{ ...tdT, textAlign: 'right', color: T.a700 }}>-{r.fee.toLocaleString()}</td>
+                  <td style={tdT}>{txFeeAccInDate[i] || '—'}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 700, background: T.n100 }}>
+                <td colSpan={2} style={{ ...tdT, color: T.n600, fontSize: 12 }}>合計</td>
+                <td style={{ ...tdT, textAlign: 'right', color: T.a700 }}>
+                  -{txFeeAccRows.reduce((s, r) => s + r.fee, 0).toLocaleString()}
+                </td>
+                <td style={tdT} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      {txFeeAccRows.length === 0 && txFeeAccFileName && (
+        <p style={{ fontSize: 12, color: C.warn, marginTop: 10 }}>未找到「執行方式 = 資訊服務」的資料</p>
+      )}
+    </div>
+  )
+
+  // ── 面板：玉山銀行對帳（非蝦皮）──
+  const bankPanelGeneral = (isShopee || !hasBankStep) ? null : (
+    <div>
+      <div style={panelLead}>
+        {isPayuniCC ? '上傳玉山對帳單，勾選對應訂單後確認入帳日。'
+          : '上傳玉山對帳單，系統以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款。'}
+        {!isPayuniCC && <span style={{ color: T.n600 }}>
+          （{isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）
+        </span>}
+      </div>
+      <SourceHint text={SOURCE_HINT.bank} onSop={() => setSopOpen(true)} />
+      <div style={{ marginTop: 14 }}>
+        <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
+        <DropButton onClick={() => bankFileRef.current.click()} filled={bankRows.length > 0}
+          label={bankFileName || '上傳玉山對帳單'}
+          hint={bankRows.length > 0 ? `✓ ${bankRows.length} 筆入帳` : '尚未選擇檔案'} />
+      </div>
+
+      {/* 已確認入帳群組 — 從 DB 訂單計算，不依賴銀行對帳單是否上傳 */}
+      {(() => {
+        const confirmed = orders.filter(o => o.recon_status === '已入帳' && o.in_date)
+        if (confirmed.length === 0) return null
+        const groups = {}
+        confirmed.forEach(o => {
+          const k = (o.in_date || '').slice(0, 10)
+          if (!groups[k]) groups[k] = { date: k, orders: [], payable: 0 }
+          groups[k].orders.push(o)
+          groups[k].payable += o.payable || 0
+        })
+        const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
+        return <ConfirmedGroups groups={sorted} exp={confirmedGroupExp} setExp={setConfirmedGroupExp} />
+      })()}
+
+      {bankRows.length > 0 && (() => {
+        // 從已上傳的撥款報表（rows1）建立「銀行入帳日 → 預計金額」對照表
+        // 蘭新信用卡撥款日隔天才到玉山帳戶，所以用 payoutDate+1 當 bankDate
+        const linepayByDate = {}
+        const payoutRows = isLinePayOfficial
+          ? (rows1 && rows2 ? parseOfficialLinePayReconDual(rows1, rows2) : [])
+          : isLanxin
+            ? (rows1 ? RECON_PARSERS.lanxin(rows1) : [])
+            : (rows1 ? RECON_PARSERS.linepay(rows1) : [])
+        payoutRows.forEach(r => {
+          const payoutDate = (r.in_date || '').slice(0, 10)
+          if (!payoutDate) return
+          let bankDate = payoutDate
+          if (isLanxin) {
+            const d = new Date(payoutDate + 'T00:00:00Z')
+            d.setUTCDate(d.getUTCDate() + 1)
+            bankDate = d.toISOString().slice(0, 10)
+          }
+          if (!linepayByDate[bankDate]) linepayByDate[bankDate] = { expected: 0, count: 0, payoutDate }
+          linepayByDate[bankDate].expected += r.payable || 0
+          linepayByDate[bankDate].count++
+        })
+        const hasPayoutMap = Object.keys(linepayByDate).length > 0
+
+        // payuniCC / LINE Pay / 蘭新: 手動選取訂單，直接顯示全部銀行入帳
+        // isLinePayOfficial: 已篩帳號，直接顯示全部
+        // 其他金流（若未來新增）: 以撥款報表日期過濾
+        const displayRows = (isManualSelection || isLinePayOfficial)
+          ? bankRows
+          : hasPayoutMap
+            ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
+            : bankRows
+
+        async function batchConfirm() {
+          const selected = [...bankEntryChecked]
+          if (!selected.length) return
+          setBankMsg(p => { const n = {...p}; selected.forEach(i => { n[i] = '寫入中…' }); return n })
+          let hasErr = false
+          for (const idx of selected) {
+            const br = displayRows[idx]
+            if (!br) continue
+            const dateOrders = isLinePayOfficial
+              ? orders.filter(o => o.recon_status !== '已入帳')
+              : (() => {
+                  const payoutInfo = linepayByDate[br.date]
+                  const matchDate = payoutInfo?.payoutDate || br.date
+                  return orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                })()
+            for (const o of dateOrders) {
+              const { error } = await supabase.from('shipping_orders')
+                .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+              if (error) { hasErr = true; break }
+            }
+            if (!hasErr) {
+              if (isLinePayOfficial && txFeeAccRows.length > 0) {
+                setTxFeeAccInDate(p => {
+                  const n = { ...p }
+                  txFeeAccRows.forEach((_, i) => { n[i] = br.date })
+                  return n
+                })
+              }
+              setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+            } else break
+          }
+          if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
+        }
+
+        const allChecked = displayRows.length > 0 && bankEntryChecked.size === displayRows.length
+
+        return (
+          <div style={{ marginTop: 18 }}>
+            {!isLinePayOfficial && !isManualSelection && !hasPayoutMap && (
+              <p style={{ fontSize: 12, color: C.warn, margin: '0 0 10px' }}>
+                ⚠ 尚未上傳撥款報表，無法自動篩選。請先回到「上傳撥款明細」步驟上傳報表。
+              </p>
+            )}
+            {!isLinePayOfficial && !isManualSelection && hasPayoutMap && displayRows.length === 0 && (
+              <p style={{ fontSize: 12, color: T.danger, margin: '0 0 10px' }}>
+                ⚠ 撥款日期未對到銀行入帳日。撥款報表日期：{Object.keys(linepayByDate).slice(0, 5).join('、')}；銀行對帳單日期：{bankRows.slice(0, 5).map(r => r.date).join('、')}
+              </p>
+            )}
+            {!isManualSelection && (
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+                <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={allChecked}
+                    onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
+                  全選
+                </label>
+                {bankEntryChecked.size > 0 && (
+                  <button onClick={batchConfirm} style={{ ...btnPri, fontSize: 13 }}>
+                    批次確認入帳（{bankEntryChecked.size} 筆）
+                  </button>
+                )}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {displayRows.map((br, idx) => {
+                const payoutInfo = isLinePayOfficial ? null : linepayByDate[br.date]
+                const expected = payoutInfo ? Math.round(payoutInfo.expected * 100) / 100 : null
+                const diff = expected != null ? Math.round((br.deposit - expected) * 100) / 100 : null
+                const isMatch = diff != null && Math.abs(diff) <= 2
+                const expanded = !!bankExpanded[idx]
+                const matchDate = payoutInfo?.payoutDate || br.date
+                const dateOrders = ((isLinePayOfficial || isManualSelection)
+                  ? orders.filter(o => o.recon_status !== '已入帳')
+                  : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
+                ).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
+                const ccSel = isManualSelection ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
+                const selectedOrders = isManualSelection ? dateOrders.filter(o => ccSel.has(String(o.id))) : dateOrders
+                const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                const ccDiff = isManualSelection && ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
+                const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
+                const txFeeTotal = txFeeAccRows.reduce((s, r) => s + r.fee, 0)
+                const entryChecked = bankEntryChecked.has(idx)
+                const isDone = !!bankMsg[idx]?.startsWith('✓')
+                const cardBorderColor = isManualSelection
+                  ? (ccSel.size > 0 ? (ccMatch ? T.g500 : T.danger) : T.divider)
+                  : (entryChecked ? T.a : isMatch ? T.g500 : diff != null ? T.danger : T.divider)
+                const cardBg = isManualSelection
+                  ? (ccSel.size > 0 && ccMatch ? T.g100 : T.bg)
+                  : (entryChecked ? T.a100 : isMatch ? T.g100 : T.bg)
+                return (
+                  <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: T.rPanel, padding: '16px 18px', background: cardBg }}>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {!isPayuniCC && !isDone && (
+                        <input type="checkbox" checked={entryChecked}
+                          onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
+                      )}
+                      <span style={{ fontWeight: 700, fontSize: 16, minWidth: 96 }}>{br.date}</span>
+                      {!isDone && (isLinePayOfficial || isPayuniCC) && br.summary && (
+                        <span style={{ fontSize: 12, color: T.n600, fontFamily: 'monospace' }}>{br.summary}</span>
+                      )}
+                      {!isDone && expected != null && (
+                        <span style={{ fontSize: 13, color: T.n700 }}>
+                          {isLanxin ? '蘭新預計撥款：' : 'LINE Pay 預計：'}<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）{payoutInfo.payoutDate && isLanxin && <span style={{ fontSize: 11, marginLeft: 4 }}>撥款日 {payoutInfo.payoutDate}</span>}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 14 }}>
+                        銀行入帳 <strong>NT$ {br.deposit.toLocaleString()}</strong>
+                      </span>
+                      {!isDone && isManualSelection && ccSel.size > 0 && (
+                        <span style={{ fontSize: 14 }}>
+                          已選 <strong>NT$ {ordersPayable.toLocaleString()}</strong>
+                          {ccDiff != null && (
+                            <span style={{ marginLeft: 8, fontWeight: 700, color: ccMatch ? T.g700 : T.danger }}>
+                              差異 {ccDiff > 0 ? '+' : ''}{ccDiff}{ccMatch && ' ✓ 相符'}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {!isDone && isManualSelection && ccSel.size === 0 && (
+                        <span style={{ fontSize: 13, color: T.n600 }}>尚未選取訂單</span>
+                      )}
+                      {!isDone && isLinePayOfficial && txFeeAccRows.length > 0 && (
+                        <span style={{ fontSize: 13, color: T.danger }}>
+                          交易處理費 <strong>-NT$ {txFeeTotal.toLocaleString()}</strong>（{txFeeAccRows.length} 筆）
+                        </span>
+                      )}
+                      {!isDone && !isManualSelection && <span style={{ fontSize: 11, color: T.n500, fontFamily: 'monospace' }}>{br.account}</span>}
+                      {!isDone && diff != null && (
+                        <span style={{ fontSize: 14, fontWeight: 700, color: isMatch ? T.g700 : T.danger }}>
+                          差異 {diff > 0 ? '+' : ''}{diff}{isMatch && ' ✓ 相符'}
+                        </span>
+                      )}
+                      {!isDone && dateOrders.length > 0 && (
+                        <button
+                          onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
+                          style={{ ...btnSec, fontSize: 13, padding: '5px 12px', marginLeft: 'auto' }}
+                        >{expanded ? '收起 ▲' : `選取訂單 ▾ (${dateOrders.length})`}</button>
+                      )}
+                      {!isDone && (isManualSelection ? ccSel.size > 0 : dateOrders.length > 0) && (
+                        <button
+                          onClick={() => confirmBankEntry(idx, br, dateOrders)}
+                          style={{ ...btnPri, fontSize: 13, padding: '5px 12px' }}
+                        >{isManualSelection ? `確認入帳（${ccSel.size} 筆）` : '確認入帳'}</button>
+                      )}
+                      {bankMsg[idx] && (
+                        <span style={{ fontSize: 13, marginLeft: 'auto', fontWeight: 600, color: bankMsg[idx].includes('❌') ? T.danger : T.g700 }}>
+                          {bankMsg[idx]}
+                        </span>
+                      )}
+                    </div>
+
+                    {!isDone && expanded && dateOrders.length > 0 && (
+                      <div style={{ marginTop: 12, borderTop: `1px solid ${T.divider}`, paddingTop: 12 }}>
+                        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ color: T.n600 }}>
+                              {isManualSelection && <th style={{ padding: '4px 6px', width: 24 }}></th>}
+                              <th style={subTh}>平台訂單編號</th>
+                              <th style={subTh}>訂單日期</th>
+                              {isLinePayOfficial && <th style={subTh}>應撥款日</th>}
+                              {isLinePayOfficial && <th style={subTh}>實際撥款日</th>}
+                              {isManualSelection && !isLinePayOfficial && <th style={subTh}>付款方式</th>}
+                              <th style={{ ...subTh, textAlign: 'right' }}>應入帳</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dateOrders.map(o => {
+                              const oChecked = isManualSelection && ccSel.has(String(o.id))
+                              return (
+                              <tr key={o.id} style={{ borderBottom: `1px solid ${T.divider}`, background: oChecked ? T.a100 : 'transparent' }}>
+                                {isManualSelection && (
+                                  <td style={{ padding: '4px 6px' }}>
+                                    <input type="checkbox" checked={oChecked} onChange={() => {
+                                      setBankCCOrderSel(p => {
+                                        const prev = p[idx] ? new Set(p[idx]) : new Set()
+                                        prev.has(String(o.id)) ? prev.delete(String(o.id)) : prev.add(String(o.id))
+                                        return { ...p, [idx]: prev }
+                                      })
+                                    }} />
+                                  </td>
+                                )}
+                                <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                                <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
+                                {isLinePayOfficial && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
+                                {isLinePayOfficial && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : T.text }}>{br.actualDate || '—'}</td>}
+                                {isManualSelection && !isLinePayOfficial && <td style={{ padding: '4px 6px', fontSize: 11, color: T.n600 }}>{o.pay_method || '—'}</td>}
+                                <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+                              </tr>
+                              )
+                            })}
+                            <tr style={{ borderTop: `1px solid ${T.n400}`, fontWeight: 700 }}>
+                              <td colSpan={isLinePayOfficial ? 5 : 4} style={{ padding: '6px', color: T.n600, fontSize: 11 }}>
+                                {isManualSelection ? `已選 ${ccSel.size} 筆合計` : '訂單合計'}
+                              </td>
+                              <td style={{ padding: '6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        </div>
+                        {isLinePayOfficial && txFeeAccRows.length > 0 && (
+                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 10, borderTop: `1px solid ${T.divider}` }}>
+                            <thead>
+                              <tr style={{ color: T.n600 }}>
+                                <th style={subTh}>處理序號</th>
+                                <th style={subTh}>日期</th>
+                                <th style={{ ...subTh, textAlign: 'right', color: T.danger }}>交易處理費（負）</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {txFeeAccRows.map((r, i) => (
+                                <tr key={i} style={{ borderBottom: `1px solid ${T.divider}` }}>
+                                  <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
+                                  <td style={{ padding: '4px 6px' }}>{r.date || '—'}</td>
+                                  <td style={{ padding: '4px 6px', textAlign: 'right', color: T.danger }}>-{r.fee.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+
+  // ── 面板：玉山銀行對帳（蝦皮）──
+  const bankPanelShopee = !isShopee ? null : (
+    <div>
+      <div style={panelLead}>上傳玉山對帳單，篩出備註含「SHOPEE」或帳號 808/0370979139156 的入帳，手動勾選對應訂單後確認入帳日。</div>
+      <SourceHint text={SOURCE_HINT.bank} onSop={() => setSopOpen(true)} />
+      <div style={{ marginTop: 14 }}>
+        <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
+        <DropButton onClick={() => bankFileRef.current.click()} filled={bankRows.length > 0}
+          label={bankFileName || '上傳玉山對帳單'}
+          hint={bankRows.length > 0 ? `✓ ${bankRows.length} 筆入帳` : '尚未選擇檔案'} />
+      </div>
+
+      {/* 已確認入帳群組 */}
+      {(() => {
+        const confirmed = orders.filter(o => o.recon_status === '已入帳' && o.in_date)
+        if (!confirmed.length) return null
+        const groups = {}
+        confirmed.forEach(o => {
+          const k = (o.in_date || '').slice(0, 10)
+          if (!groups[k]) groups[k] = { date: k, orders: [], payable: 0 }
+          groups[k].orders.push(o)
+          groups[k].payable += o.payable || 0
+        })
+        const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
+        return <ConfirmedGroups groups={sorted} exp={confirmedGroupExp} setExp={setConfirmedGroupExp} />
+      })()}
+
+      {/* 銀行對帳單入帳列表 */}
+      {bankRows.length > 0 && (() => {
+        const displayRows = bankRows
+
+        async function batchConfirmShopee() {
+          const selected = [...bankEntryChecked]
+          if (!selected.length) return
+          setBankMsg(p => { const n = {...p}; selected.forEach(i => { n[i] = '寫入中…' }); return n })
+          let hasErr = false
+          for (const idx of selected) {
+            const br = displayRows[idx]
+            if (!br) continue
+            const ccSel = bankCCOrderSel[idx] ?? new Set()
+            const dateOrders = orders.filter(o => ccSel.has(String(o.id)))
+            for (const o of dateOrders) {
+              const { error } = await supabase.from('shipping_orders')
+                .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+              if (error) { hasErr = true; break }
+            }
+            if (!hasErr) setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+            else break
+          }
+          if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
+        }
+
+        const allChecked = displayRows.length > 0 && bankEntryChecked.size === displayRows.length
+
+        return (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+              <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={allChecked}
+                  onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
+                全選
+              </label>
+              {bankEntryChecked.size > 0 && (
+                <button onClick={batchConfirmShopee} style={{ ...btnPri, fontSize: 13 }}>
+                  批次確認入帳（{bankEntryChecked.size} 筆）
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {displayRows.map((br, idx) => {
+                const ccSel = bankCCOrderSel[idx] ?? new Set()
+                const pendingOrders = orders
+                  .filter(o => o.recon_status !== '已入帳')
+                  .sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
+                const selectedOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
+                const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
+                const ccDiff = ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
+                const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
+                const expanded = !!bankExpanded[idx]
+                const isDone = !!bankMsg[idx]?.startsWith('✓')
+                const cardBorderColor = ccSel.size > 0 ? (ccMatch ? T.g500 : T.danger) : T.divider
+                const cardBg = ccSel.size > 0 && ccMatch ? T.g100 : T.bg
+                return (
+                  <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: T.rPanel, padding: '16px 18px', background: cardBg }}>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {!isDone && (
+                        <input type="checkbox" checked={bankEntryChecked.has(idx)}
+                          onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
+                      )}
+                      <span style={{ fontWeight: 700, fontSize: 16, minWidth: 96 }}>{br.date}</span>
+                      <span style={{ fontSize: 12, color: T.n600 }}>{br.summary}</span>
+                      <span style={{ fontSize: 14 }}>銀行入帳 <strong>NT$ {br.deposit.toLocaleString()}</strong></span>
+                      {ccSel.size > 0 ? (
+                        <span style={{ fontSize: 14 }}>
+                          已選 <strong>NT$ {ordersPayable.toLocaleString()}</strong>
+                          {ccDiff != null && (
+                            <span style={{ marginLeft: 8, fontWeight: 700, color: ccMatch ? T.g700 : T.danger }}>
+                              差異 {ccDiff > 0 ? '+' : ''}{ccDiff}{ccMatch && ' ✓ 相符'}
+                            </span>
+                          )}
+                        </span>
+                      ) : !isDone && <span style={{ fontSize: 13, color: T.n600 }}>尚未選取訂單</span>}
+                      {!isDone && (
+                        <button onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
+                          style={{ ...btnSec, fontSize: 13, padding: '5px 12px', marginLeft: 'auto' }}>
+                          {expanded ? '收起 ▲' : `選取訂單 ▾ (${pendingOrders.length})`}
+                        </button>
+                      )}
+                      {!isDone && ccSel.size > 0 && (
+                        <button onClick={async () => {
+                          const dateOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
+                          for (const o of dateOrders) {
+                            await supabase.from('shipping_orders')
+                              .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
+                          }
+                          setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
+                          await loadOrders()
+                        }} style={{ ...btnPri, fontSize: 13, padding: '5px 12px' }}>
+                          確認入帳（{ccSel.size} 筆）
+                        </button>
+                      )}
+                      {bankMsg[idx] && (
+                        <span style={{ fontSize: 13, fontWeight: 700, color: bankMsg[idx].startsWith('✓') ? T.g700 : T.danger }}>
+                          {bankMsg[idx]}
+                        </span>
+                      )}
+                    </div>
+                    {!isDone && expanded && (
+                      <div style={{ marginTop: 12, borderTop: `1px solid ${T.divider}`, paddingTop: 12 }}>
+                        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                          <thead><tr style={{ color: T.n600 }}>
+                            <th style={{ padding: '3px 6px' }}></th>
+                            <th style={subTh}>平台訂單編號</th>
+                            <th style={subTh}>訂單日期</th>
+                            <th style={{ ...subTh, textAlign: 'right' }}>應入帳</th>
+                          </tr></thead>
+                          <tbody>
+                            {pendingOrders.map(o => (
+                              <tr key={o.id} style={{ background: ccSel.has(String(o.id)) ? T.a100 : 'transparent', borderBottom: `1px solid ${T.divider}` }}>
+                                <td style={{ padding: '3px 6px' }}>
+                                  <input type="checkbox" checked={ccSel.has(String(o.id))}
+                                    onChange={() => {
+                                      const s = new Set(ccSel)
+                                      s.has(String(o.id)) ? s.delete(String(o.id)) : s.add(String(o.id))
+                                      setBankCCOrderSel(p => ({ ...p, [idx]: s }))
+                                    }} />
+                                </td>
+                                <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                                <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
+                                <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString() ?? '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+
+  stepPanel.bank = isShopee ? bankPanelShopee : bankPanelGeneral
+
+  // ── 面板：訂單發票輸入（蝦皮專屬）──
+  stepPanel.ordInv = !isShopee ? null : (() => {
+    const amtNum = parseFloat(ordInvEntryAmount) || 0
+    const previewOrders = ordInvEntryMethod === 'auto'
+      ? (ordInvEntryPreview || [])
+      : orders.filter(o => !o.order_invoice_no).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
+    const selectedOrders = ordInvEntryMethod === 'auto'
+      ? (ordInvEntryPreview || [])
+      : orders.filter(o => ordInvEntryChecked.has(o.id))
+    const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.order_invoice_amount || 0), 0) * 100) / 100
+    const diff = Math.round((totalSum - amtNum) * 100) / 100
+    const isMatch = amtNum > 0 && diff === 0
+    const hasSel = selectedOrders.length > 0
+    return (
+      <div>
+        <div style={panelLead}>輸入訂單發票（代收付）號碼，勾選或以期間篩選要歸入這張發票的訂單，加總後套用。</div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <Field label="發票號碼">
+            <input value={ordInvEntryNo} onChange={e => setOrdInvEntryNo(e.target.value)} placeholder="AB-12345678" style={inpT} />
+          </Field>
+          <Field label="發票日期">
+            <input type="date" value={ordInvEntryDate} onChange={e => setOrdInvEntryDate(e.target.value)} style={inpT} />
+          </Field>
+          <Field label="發票金額（含稅）">
+            <input type="number" value={ordInvEntryAmount} onChange={e => setOrdInvEntryAmount(e.target.value)} placeholder="0" style={inpT} />
+          </Field>
+        </div>
+
+        <SegBtns value={ordInvEntryMethod}
+          onChange={v => { setOrdInvEntryMethod(v); setOrdInvEntryPreview(null); setOrdInvEntryChecked(new Set()); setOrdInvEntryMsg('') }} />
+
+        {ordInvEntryMethod === 'auto' && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <Field label="訂單日期起"><input type="date" value={ordInvEntryFrom} onChange={e => setOrdInvEntryFrom(e.target.value)} style={inpT} /></Field>
+            <Field label="訂單日期訖"><input type="date" value={ordInvEntryTo} onChange={e => setOrdInvEntryTo(e.target.value)} style={inpT} /></Field>
+            <div style={{ paddingBottom: 10 }}><button onClick={runOrdInvEntryPreview} style={btnPri}>查詢</button></div>
+          </div>
+        )}
+
+        {ordInvEntryMethod === 'manual' && (
+          <div style={pickWrap}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thT, position: 'static' }}>
+                    <input type="checkbox"
+                      checked={previewOrders.length > 0 && ordInvEntryChecked.size === previewOrders.length}
+                      onChange={() => {
+                        if (ordInvEntryChecked.size === previewOrders.length) setOrdInvEntryChecked(new Set())
+                        else setOrdInvEntryChecked(new Set(previewOrders.map(o => o.id)))
+                      }} />
+                  </th>
+                  {['平台訂單編號', '訂單日期', '代收付發票金額'].map(c =>
+                    <th key={c} style={{ ...thT, position: 'static', textAlign: c === '代收付發票金額' ? 'right' : 'left' }}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {previewOrders.length === 0 && (
+                  <tr><td colSpan={4} style={{ ...tdT, textAlign: 'center', color: T.n600 }}>所有訂單都已有發票號碼</td></tr>
+                )}
+                {previewOrders.map((o, i) => (
+                  <tr key={i} style={{ background: ordInvEntryChecked.has(o.id) ? T.a100 : 'transparent' }}>
+                    <td style={tdT}><input type="checkbox" checked={ordInvEntryChecked.has(o.id)}
+                      onChange={() => {
+                        const s = new Set(ordInvEntryChecked)
+                        s.has(o.id) ? s.delete(o.id) : s.add(o.id)
+                        setOrdInvEntryChecked(s)
+                      }} /></td>
+                    <td style={{ ...tdT, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                    <td style={tdT}>{o.order_date || '—'}</td>
+                    <td style={{ ...tdT, textAlign: 'right' }}>{(o.order_invoice_amount ?? 0).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {(hasSel || (ordInvEntryPreview && ordInvEntryMethod === 'auto')) && (
+          <SumBar tone={isMatch ? 'ok' : amtNum > 0 && diff !== 0 ? 'bad' : 'flat'}>
+            <span style={{ fontSize: 13 }}>訂單筆數 <strong>{selectedOrders.length}</strong></span>
+            <span style={{ fontSize: 13 }}>代收付發票金額加總 <strong>{totalSum.toLocaleString()}</strong></span>
+            {amtNum > 0 && <span style={{ fontSize: 13 }}>發票金額 <strong>{amtNum.toLocaleString()}</strong></span>}
+            {amtNum > 0 && (
+              <span style={{ fontSize: 13, color: isMatch ? T.g700 : T.danger, fontWeight: 700 }}>
+                差異 {diff.toLocaleString()}　{isMatch ? '✓ 相符' : '✗ 有差異'}
+              </span>
+            )}
+            <button onClick={runApplyOrdInvEntry} style={{ ...btnPri, marginLeft: 'auto' }}>套用</button>
+          </SumBar>
+        )}
+        <PanelMsg text={ordInvEntryMsg} bad={/錯誤|請/} />
+      </div>
+    )
+  })()
+
+  // ── 面板：手續費發票核對 ──
+  stepPanel.feeInv = (
+    <div>
+      <div style={panelLead}>
+        依發票號碼分組核對：一張發票可群組多筆訂單，發票金額須等於該組訂單的手續費合計。左側色帶與下方明細表的訂單相互對應。
+      </div>
+      <InvoiceGroupCards
+        groups={invoiceGroups} colorIdx={invColorIdx} kind="fee"
+        orders={shownOrders} onOpen={k => setViewInvKey(k)} />
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18, alignItems: 'flex-end' }}>
+        <Field label="發票號碼">
+          <input value={invNo} onChange={e => setInvNo(e.target.value)} placeholder="AB-12345678" style={inpT} />
+        </Field>
+        <Field label="發票日期">
+          <input type="date" value={invDate} onChange={e => setInvDate(e.target.value)} style={inpT} />
+        </Field>
+        <Field label="發票金額">
+          <input type="number" value={invAmount} onChange={e => setInvAmount(e.target.value)} placeholder="0" style={inpT} />
+        </Field>
+      </div>
+
+      <SegBtns value={invMethod} onChange={switchMethod} />
+
+      {invMethod === 'auto' && (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <Field label="期間起"><input type="date" value={invFrom} onChange={e => setInvFrom(e.target.value)} style={inpT} /></Field>
+          <Field label="期間訖"><input type="date" value={invTo} onChange={e => setInvTo(e.target.value)} style={inpT} /></Field>
+          <div style={{ paddingBottom: 10 }}><button onClick={runInvPreviewAuto} style={btnPri}>查詢</button></div>
+        </div>
+      )}
+
+      {invMethod === 'manual' && (
+        <div style={pickWrap}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th style={{ ...thT, position: 'static' }}>
                   <input type="checkbox"
-                    checked={shownOrders.length > 0 && selectedIds.size === shownOrders.length}
-                    onChange={toggleSelectAll} />
+                    checked={manualOrders.length > 0 && checkedIds.size === manualOrders.length}
+                    onChange={toggleAll} />
                 </th>
-                {['銷貨單號', '訂單發票號碼', ...(isShopee ? ['代收付發票金額'] : []), '對應碼', '平台訂單編號', '訂單日期', '應收', '手續費', '交易處理費', '應入帳', '實際入帳', '入帳日', '狀態', '手續費發票號碼', ...(isLinePayOfficial ? ['交易處理費發票號碼'] : [])]
-                  .filter(c => !(isShopee && (c === '對應碼' || c === '交易處理費')))
-                  .map(c => {
-                  const key = SORT_KEY[c]
-                  const active = sortCol === key
+                {['銷貨單號', '入帳日', '手續費'].map(c =>
+                  <th key={c} style={{ ...thT, position: 'static', textAlign: c === '手續費' ? 'right' : 'left' }}>{c}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {manualOrders.length === 0 && (
+                <tr><td colSpan={4} style={{ ...tdT, textAlign: 'center', color: T.n600 }}>所有訂單都已歸發票</td></tr>
+              )}
+              {manualOrders.map((o, i) => (
+                <tr key={i} style={{ background: checkedIds.has(o.id) ? T.a100 : 'transparent' }}>
+                  <td style={tdT}><input type="checkbox" checked={checkedIds.has(o.id)} onChange={() => toggleCheck(o.id)} /></td>
+                  <td style={{ ...tdT, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                  <td style={tdT}>{o.in_date || o.order_date || '—'}</td>
+                  <td style={{ ...tdT, textAlign: 'right' }}>{(o.fee_total ?? 0).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {hasInvOrders && (
+        <SumBar tone={invIsMatch ? 'ok' : invDiff != null ? 'bad' : 'flat'}>
+          {invFeeSum != null && <span style={{ fontSize: 13 }}>手續費加總 <strong>{invFeeSum.toLocaleString()}</strong></span>}
+          {invAmountNum > 0 && <span style={{ fontSize: 13 }}>發票金額 <strong>{invAmountNum.toLocaleString()}</strong></span>}
+          {invDiff != null && (
+            <span style={{ fontSize: 13, color: invIsMatch ? T.g700 : T.danger, fontWeight: 700 }}>
+              差異 {invDiff.toLocaleString()}　{invIsMatch ? '✓ 相符' : '✗ 有差異'}
+            </span>
+          )}
+          <button onClick={runApplyInvoice} style={{ ...btnPri, marginLeft: 'auto' }}>套用</button>
+        </SumBar>
+      )}
+      <PanelMsg text={invMsg} bad={/錯誤/} />
+    </div>
+  )
+
+  // ── 面板：PayUni 交易處理費發票核對（官網 LINE Pay）──
+  stepPanel.txFeeInv = !isLinePayOfficial ? null : (() => {
+    const inv3FeeSum = inv3Preview?.txFeeSum ?? (inv3Method === 'manual' ? manual3TxFeeSum : null)
+    const inv3AmountNum = parseFloat(inv3Amount) || 0
+    const inv3Diff = inv3AmountNum > 0 && inv3FeeSum != null ? Math.round((inv3AmountNum - inv3FeeSum) * 100) / 100 : null
+    const inv3IsMatch = inv3Diff != null && Math.abs(inv3Diff) < 0.01
+    const hasInv3Orders = inv3Preview?.orders?.length > 0 || (inv3Method === 'manual' && checked3Ids.size > 0)
+    return (
+      <div>
+        <div style={panelLead}>
+          PayUni 服務費（0.2%）是帳戶層月結總額發票，與 LINE Pay 手續費（2.2%）那張分開核對。
+        </div>
+        <InvoiceGroupCards
+          groups={txInvoiceGroups} colorIdx={{}} kind="tx"
+          orders={shownOrders} onOpen={k => setViewTxInvKey(k)} />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18, alignItems: 'flex-end' }}>
+          <Field label="發票號碼">
+            <input value={inv3No} onChange={e => setInv3No(e.target.value)} placeholder="AB-12345678" style={inpT} />
+          </Field>
+          <Field label="發票日期">
+            <input type="date" value={inv3Date} onChange={e => setInv3Date(e.target.value)} style={inpT} />
+          </Field>
+          <Field label="發票金額">
+            <input type="number" value={inv3Amount} onChange={e => setInv3Amount(e.target.value)} placeholder="0" style={inpT} />
+          </Field>
+        </div>
+
+        <SegBtns value={inv3Method} onChange={switchMethod3} />
+
+        {inv3Method === 'auto' && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <Field label="期間起"><input type="date" value={inv3From} onChange={e => setInv3From(e.target.value)} style={inpT} /></Field>
+            <Field label="期間訖"><input type="date" value={inv3To} onChange={e => setInv3To(e.target.value)} style={inpT} /></Field>
+            <div style={{ paddingBottom: 10 }}><button onClick={runInv3PreviewAuto} style={btnPri}>查詢</button></div>
+          </div>
+        )}
+
+        {inv3Method === 'manual' && (
+          <div style={pickWrap}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thT, position: 'static' }}>
+                    <input type="checkbox"
+                      checked={manual3Orders.length > 0 && checked3Ids.size === manual3Orders.length}
+                      onChange={toggleAll3} />
+                  </th>
+                  {['平台訂單編號', '入帳日', '交易處理費'].map(c =>
+                    <th key={c} style={{ ...thT, position: 'static', textAlign: c === '交易處理費' ? 'right' : 'left' }}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {manual3Orders.length === 0 && (
+                  <tr><td colSpan={4} style={{ ...tdT, textAlign: 'center', color: T.n600 }}>所有訂單都已歸發票</td></tr>
+                )}
+                {manual3Orders.map((o, i) => (
+                  <tr key={i} style={{ background: checked3Ids.has(o.id) ? T.a100 : 'transparent' }}>
+                    <td style={tdT}><input type="checkbox" checked={checked3Ids.has(o.id)} onChange={() => toggleCheck3(o.id)} /></td>
+                    <td style={{ ...tdT, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                    <td style={tdT}>{o.in_date || o.order_date || '—'}</td>
+                    <td style={{ ...tdT, textAlign: 'right' }}>{(o.tx_fee ?? 0).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {hasInv3Orders && (
+          <SumBar tone={inv3IsMatch ? 'ok' : inv3Diff != null ? 'bad' : 'flat'}>
+            {inv3FeeSum != null && <span style={{ fontSize: 13 }}>交易處理費加總 <strong>{inv3FeeSum.toLocaleString()}</strong></span>}
+            {inv3AmountNum > 0 && <span style={{ fontSize: 13 }}>發票金額 <strong>{inv3AmountNum.toLocaleString()}</strong></span>}
+            {inv3Diff != null && (
+              <span style={{ fontSize: 13, color: inv3IsMatch ? T.g700 : T.danger, fontWeight: 700 }}>
+                差異 {inv3Diff.toLocaleString()}　{inv3IsMatch ? '✓ 相符' : '✗ 有差異'}
+              </span>
+            )}
+            <button onClick={runApplyTxFeeInvoice} style={{ ...btnPri, marginLeft: 'auto' }}>套用</button>
+          </SumBar>
+        )}
+        <PanelMsg text={inv3Msg} bad={/錯誤/} />
+
+        {/* 帳戶層費用備註（PayUni 服務費，不逐筆扣） */}
+        <div style={{ marginTop: 18, borderTop: `1px solid ${T.divider}`, paddingTop: 16 }}>
+          <div style={{ fontSize: 13, color: T.n700, marginBottom: 10 }}>
+            帳戶層服務費備註：一筆涵蓋多單、不逐筆扣，僅記錄到訂單的 <code>account_fee_note</code>。
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <Field label="發票號碼"><input value={inv2No} onChange={e => setInv2No(e.target.value)} placeholder="XC19745594" style={inpT} /></Field>
+            <Field label="發票日期"><input type="date" value={inv2Date} onChange={e => setInv2Date(e.target.value)} style={inpT} /></Field>
+            <Field label="發票金額"><input type="number" value={inv2Amount} onChange={e => setInv2Amount(e.target.value)} placeholder="0" style={inpT} /></Field>
+            <div style={{ paddingBottom: 10 }}><button onClick={applyPayuniAccountFee} style={btnSec}>記錄備註</button></div>
+          </div>
+          <PanelMsg text={inv2Msg} bad={/錯誤|請/} />
+        </div>
+      </div>
+    )
+  })()
+
+  // ── 訂單明細表欄位定義 ──
+  const cols = [
+    { label: '平台訂單編號', key: 'ref_no' },
+    { label: '銷貨單號', key: 'sa_no' },
+    { label: '訂單發票號碼', key: 'order_invoice_no' },
+    ...(isShopee ? [{ label: '代收付發票金額', key: null, align: 'right' }] : []),
+    ...(isShopee ? [] : [{ label: '對應碼', key: 'tx_code' }]),
+    { label: '訂單日期', key: 'order_date' },
+    { label: '應收', key: 'total', align: 'right' },
+    { label: '手續費', key: 'fee_total', align: 'right' },
+    ...(isShopee ? [] : [{ label: '交易處理費', key: 'tx_fee', align: 'right' }]),
+    { label: '應入帳', key: 'payable', align: 'right' },
+    { label: '實際入帳', key: 'actual_in', align: 'right' },
+    { label: '入帳日', key: 'in_date' },
+    { label: '差異', key: null, align: 'right', anchor: true },
+    { label: '狀態', key: 'recon_status', anchor: true },
+    { label: '手續費發票', key: 'fee_invoice_no', min: 180 },
+    ...(isLinePayOfficial ? [{ label: '交易處理費發票', key: 'tx_fee_invoice_no', min: 160 }] : []),
+    { label: '', key: null, align: 'right' },
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── 進度總覽 ── */}
+      <div style={{ background: T.n100, borderRadius: T.rCard, boxShadow: T.shadowSm, padding: '26px 30px',
+        display: 'grid', gridTemplateColumns: 'minmax(0,320px) 1fr', gap: 36, alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '.1em', color: T.a, marginBottom: 6 }}>
+            {(filterMonth || '全部期間').toUpperCase()} · {gwInfo.label}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <span style={{ fontSize: 64, lineHeight: .9, fontWeight: 700, color: T.navy }}>{donePct}%</span>
+            <span style={{ fontSize: 14, color: T.n700 }}>已完成對帳</span>
+          </div>
+          <div style={{ marginTop: 14, fontSize: 15 }}>
+            <strong style={{ fontSize: 18 }}>{cDone}</strong>
+            <span style={{ color: T.n600 }}> / {heroTotal} 筆</span>
+            <span style={{ marginLeft: 12, color: T.a700, fontWeight: 600 }}>尚有 {heroTotal - cDone} 筆待對</span>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, color: T.n600, marginBottom: 9 }}>訂單進度漏斗 · 依生命週期</div>
+          <div style={{ display: 'flex', height: 26, borderRadius: T.rPill, overflow: 'hidden', background: T.n200 }}>
+            <div style={{ width: `${segW(cShipped)}%`, background: T.n300 }} />
+            <div style={{ width: `${segW(cSettled)}%`, background: T.g300 }} />
+            <div style={{ width: `${segW(cPaid)}%`, background: T.a400 }} />
+            <div style={{ width: `${segW(cDone)}%`, background: T.g600 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 22, marginTop: 14, flexWrap: 'wrap' }}>
+            {[['已出貨', T.n300, cShipped], ['平台已結算', T.g300, cSettled],
+              ['已入帳', T.a400, cPaid], ['已對帳', T.g600, cDone]].map(([lbl, color, n]) => (
+              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 11, height: 11, borderRadius: 3, background: color }} />
+                <span style={{ fontSize: 13, color: T.n700 }}>{lbl}</span>
+                <strong>{n}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 對帳步驟工作區 ── */}
+      <div style={{ background: T.n100, borderRadius: T.rCard, boxShadow: T.shadowSm, padding: '24px 28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          marginBottom: 18, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0, fontSize: 22, color: T.navy }}>本期對帳步驟</h3>
+            <span style={{ fontSize: 13, color: T.n600 }}>依序完成 · 每一步的檔案就在該步驟裡</span>
+          </div>
+          <button onClick={() => setSopOpen(true)} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <IconBook />教學 SOP
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stepCols},minmax(0,1fr))`, gap: 12 }}>
+          {stepDefs.map((s, i) => {
+            const active = s.key === curStep
+            const state = s.done ? 'done' : (s.key === firstTodoKey ? 'current' : 'todo')
+            return (
+              <button key={s.key} onClick={() => setActiveStepKey(s.key)} aria-pressed={active}
+                style={{
+                  border: `1.5px solid ${active ? T.a : state === 'current' ? T.a300 : T.divider}`,
+                  background: active ? T.a100 : state === 'done' ? T.g100 : T.bg,
+                  borderRadius: T.rPanel, padding: '14px 16px', cursor: 'pointer',
+                  transition: 'background .12s,border-color .12s',
+                  font: 'inherit', color: 'inherit', textAlign: 'left', display: 'block', width: '100%',
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 28, height: 28, flex: 'none', borderRadius: '50%', display: 'grid',
+                    placeItems: 'center', fontSize: 14, fontWeight: 700,
+                    background: state === 'done' ? T.g600 : state === 'current' ? T.a : T.n300,
+                    color: state === 'todo' ? T.n700 : T.bg }}>
+                    {state === 'done' ? '✓' : i + 1}
+                  </span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{s.title}</span>
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: T.n600, whiteSpace: 'nowrap' }}>{s.sub}</span>
+                  <Tag tone={state === 'done' ? 'accent2' : state === 'current' ? 'accent' : 'neutral'}>
+                    {state === 'done' ? '完成' : state === 'current' ? '進行中' : '待處理'}
+                  </Tag>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        <div style={{ marginTop: 20, borderTop: `1px solid ${T.divider}`, paddingTop: 20 }}>
+          {stepPanel[curStep] || <div style={{ fontSize: 13, color: T.n600 }}>此金流不需要這個步驟。</div>}
+        </div>
+      </div>
+
+      {/* ── 訂單明細表 ── */}
+      <div style={{ background: T.n100, borderRadius: T.rCard, boxShadow: T.shadowSm, padding: '22px 26px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 22, color: T.navy, whiteSpace: 'nowrap' }}>訂單明細</h3>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {chipDefs.map(c => {
+              const on = c.value === filterStatus
+              return (
+                <button key={c.label} onClick={() => setFilterStatus(c.value)} aria-pressed={on}
+                  style={{ padding: '6px 13px', borderRadius: T.rPill, fontSize: 13, cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    border: `1px solid ${on ? T.a : T.divider}`, background: on ? T.a100 : 'transparent',
+                    color: on ? T.a700 : T.n700, whiteSpace: 'nowrap', transition: 'background .12s,border-color .12s' }}>
+                  {c.label} {c.count}
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ ...inpT, width: 'auto' }}>
+              <option value="">全部月份</option>
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜尋訂單編號…"
+              style={{ ...inpT, width: 180 }} />
+            {selectedIds.size > 0 && (
+              <button onClick={deleteSelected} style={{ ...btnSec, color: T.danger, borderColor: T.danger }}>
+                刪除 {selectedIds.size} 筆
+              </button>
+            )}
+            {deleteMsg && <span style={{ fontSize: 12, color: deleteMsg.includes('錯誤') ? T.danger : T.n600 }}>{deleteMsg}</span>}
+            <button onClick={loadOrders} style={btnSec}>重新整理</button>
+            <button onClick={exportOrders} style={btnSec}>匯出</button>
+          </div>
+        </div>
+
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '62vh',
+          borderRadius: T.rInner, border: `1px solid ${T.divider}`, background: T.surface }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 920, fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={{ ...thT, width: 34 }}>
+                  <input type="checkbox"
+                    checked={searched.length > 0 && selectedIds.size === searched.length}
+                    onChange={() => setSelectedIds(prev => prev.size === searched.length ? new Set() : new Set(searched.map(o => o.id)))} />
+                </th>
+                {cols.map(c => {
+                  const active = c.key && sortCol === c.key
                   return (
-                    <th key={c} style={{ ...th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                      onClick={() => key && handleSort(key)}>
-                      {c}{active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                    <th key={c.label || 'edit'}
+                      onClick={() => c.key && handleSort(c.key)}
+                      style={{ ...(c.anchor ? thAnchor : thT), textAlign: c.align || 'left',
+                        minWidth: c.min, cursor: c.key ? 'pointer' : 'default', userSelect: 'none' }}>
+                      {c.label}{active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                     </th>
                   )
                 })}
@@ -1541,9 +2619,11 @@ function GatewayWorkspace({ gateway }) {
                 const seenTxInv = new Set()
                 const seenOrdInv = new Set()
                 const seenBankGroup = new Set()
-                return shownOrders.map((o, i) => {
-                  const invBg = o.fee_invoice_no ? INV_BG[invColorIdx[o.fee_invoice_no]] : undefined
-                  const rowBg = selectedIds.has(o.id) ? C.brandBg : invBg
+                return searched.map((o, i) => {
+                  const ci = o.fee_invoice_no ? invColorIdx[o.fee_invoice_no] : null
+                  const invBg = ci != null ? INV_BG[ci] : undefined
+                  const groupBar = ci != null ? INV_BAR[ci] : 'transparent'
+                  const rowBg = selectedIds.has(o.id) ? T.a200 : invBg
                   const isFirstInv = o.fee_invoice_no && !seenInv.has(o.fee_invoice_no)
                   if (o.fee_invoice_no) seenInv.add(o.fee_invoice_no)
                   const grp = o.fee_invoice_no ? invoiceGroups[o.fee_invoice_no] : null
@@ -1557,674 +2637,300 @@ function GatewayWorkspace({ gateway }) {
                   const isFirstBankGroup = bankGroupKey && !seenBankGroup.has(bankGroupKey)
                   if (bankGroupKey) seenBankGroup.add(bankGroupKey)
                   const bankGrp = bankGroupKey ? bankGroups[bankGroupKey] : null
+                  const diff = calcDiff(o)
+                  const feeMatch = grp && grp.invAmount != null ? Math.abs(grp.feeSum - grp.invAmount) < 0.01 : null
                   return (
-                    <tr key={i} style={{ background: rowBg }}>
-                      <td style={td}>
+                    <tr key={i} className="hhy-row" style={{ background: rowBg }}>
+                      <td style={{ ...tdT, borderLeft: `3px solid ${groupBar}` }}>
                         <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)} />
                       </td>
-                      <td style={td}>
-                        <button onClick={() => { setEditOrder({ ...o }); setEditMsg('') }}
-                          style={{ fontSize: 12, padding: '2px 8px', border: `1px solid ${C.line}`,
-                            borderRadius: 6, background: '#fff', cursor: 'pointer', color: C.sub }}>
-                          編輯
-                        </button>
-                      </td>
-                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
-                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, cursor: o.order_invoice_no ? 'pointer' : 'default' }}
+                      <td style={{ ...tdT, fontFamily: 'monospace' }}>{o.ref_no}</td>
+                      <td style={{ ...tdT, fontFamily: 'monospace', fontSize: 12 }}>{o.sa_no || '—'}</td>
+                      <td style={{ ...tdT, fontFamily: 'monospace', fontSize: 12, cursor: o.order_invoice_no ? 'pointer' : 'default' }}
                         onClick={o.order_invoice_no ? () => { setViewOrdInvKey(o.order_invoice_no); setOrdInvDeleteConfirm(false); setOrdInvPopupDate(ordInvGroups[o.order_invoice_no]?.invDate || '') } : undefined}>
                         {isFirstOrdInv && ordInvGrp ? (
                           <div>
-                            <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.order_invoice_no}</div>
-                            <div style={{ fontSize: 11, color: C.sub }}>{ordInvGrp.count} 筆</div>
+                            <div style={{ color: T.a700, textDecoration: 'underline' }}>{o.order_invoice_no}</div>
+                            <div style={{ fontSize: 11, color: T.n600 }}>共 {ordInvGrp.count} 筆</div>
                           </div>
-                        ) : o.order_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
+                        ) : o.order_invoice_no ? <span style={{ fontSize: 12, color: T.n500 }}>↳ 同張發票</span> : <span style={{ color: T.n400 }}>—</span>}
                       </td>
-                      {isShopee && <td style={{ ...td, textAlign: 'right' }}>{o.order_invoice_amount != null ? o.order_invoice_amount.toLocaleString() : '—'}</td>}
-                      {!isShopee && <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: C.sub }}>{o.tx_code || '—'}</td>}
-                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{o.ref_no}</td>
-                      <td style={td}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>{o.total?.toLocaleString()}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
-                      {!isShopee && <td style={{ ...td, textAlign: 'right' }}>{o.tx_fee != null ? o.tx_fee.toLocaleString() : '—'}</td>}
-                      <td style={{ ...td, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
-                      <td style={td}>
+                      {isShopee && <td style={{ ...tdT, textAlign: 'right' }}>{o.order_invoice_amount != null ? o.order_invoice_amount.toLocaleString() : '—'}</td>}
+                      {!isShopee && <td style={{ ...tdT, fontFamily: 'monospace', fontSize: 11, color: T.n600 }}>{o.tx_code || '—'}</td>}
+                      <td style={{ ...tdT, color: T.n700 }}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
+                      <td style={{ ...tdT, textAlign: 'right', color: T.n700 }}>{o.total?.toLocaleString()}</td>
+                      <td style={{ ...tdT, textAlign: 'right', color: T.n600 }}>{o.fee_total != null ? o.fee_total.toLocaleString() : '—'}</td>
+                      {!isShopee && <td style={{ ...tdT, textAlign: 'right', color: T.n600 }}>{o.tx_fee != null ? o.tx_fee.toLocaleString() : '—'}</td>}
+                      <td style={{ ...tdT, textAlign: 'right' }}>{o.payable != null ? o.payable.toLocaleString() : '—'}</td>
+                      <td style={{ ...tdT, textAlign: 'right' }}>{o.actual_in != null ? o.actual_in.toLocaleString() : '—'}</td>
+                      <td style={tdT}>
                         {isFirstBankGroup && bankGrp ? (
                           <div style={{ cursor: 'pointer' }} onClick={() => setViewBankGroupKey(bankGroupKey)}>
-                            <div style={{ fontWeight: 600, fontSize: 12, color: C.brand, textDecoration: 'underline' }}>{bankGroupKey}</div>
-                            <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 600, fontSize: 12, color: T.a700, textDecoration: 'underline' }}>{bankGroupKey}</div>
+                            <div style={{ fontSize: 11, color: T.n600, marginTop: 2, whiteSpace: 'nowrap' }}>
                               {bankGrp.count} 筆・合計 {bankGrp.bankDeposit != null ? Math.round(bankGrp.bankDeposit * 100) / 100 : '—'}
                             </div>
                           </div>
                         ) : bankGroupKey ? (
-                          <span style={{ fontSize: 11, color: C.sub, cursor: 'pointer' }} onClick={() => setViewBankGroupKey(bankGroupKey)}>↑</span>
+                          <span style={{ fontSize: 12, color: T.n500, cursor: 'pointer' }} onClick={() => setViewBankGroupKey(bankGroupKey)}>↳ 同批入帳</span>
                         ) : o.in_date || '—'}
                       </td>
-                      <td style={td}>
-                        <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 12,
-                          background: statusBg(o.recon_status), color: statusColor(o.recon_status) }}>
-                          {o.recon_status || '—'}
-                        </span>
+                      <td style={{ ...tdT, textAlign: 'right', whiteSpace: 'nowrap',
+                        fontWeight: diff == null || diff === 0 ? 600 : 700,
+                        color: diff == null ? T.n400 : diff === 0 ? T.g700 : T.danger }}>
+                        {diff == null ? '—' : diff === 0 ? '0 ✓' : (diff > 0 ? '+' + diff : String(diff))}
                       </td>
-                      <td
-                        style={{ ...td, fontFamily: 'monospace', fontSize: 12, cursor: o.fee_invoice_no ? 'pointer' : 'default' }}
-                        onClick={o.fee_invoice_no ? () => setViewInvKey(o.fee_invoice_no) : undefined}
-                      >
+                      <td style={tdT}>
+                        <Tag tone={statusTone(o.recon_status)}>{o.recon_status || '—'}</Tag>
+                      </td>
+                      <td style={{ ...tdT, cursor: o.fee_invoice_no ? 'pointer' : 'default' }}
+                        onClick={o.fee_invoice_no ? () => setViewInvKey(o.fee_invoice_no) : undefined}>
                         {isFirstInv && grp ? (
-                          <div>
-                            <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.fee_invoice_no}</div>
-                            <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
-                              {grp.count} 筆・發票金額 {grp.invAmount != null ? grp.invAmount.toLocaleString() : '—'}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontFamily: 'monospace', fontSize: 13, color: T.text }}>{o.fee_invoice_no}</span>
+                              {feeMatch != null && (
+                                <Tag tone={feeMatch ? 'accent2' : 'danger'} style={{ fontSize: 11 }}>
+                                  {feeMatch ? '✓ 相符' : `✗ 差異 ${Math.round((grp.feeSum - grp.invAmount) * 100) / 100}`}
+                                </Tag>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11, color: T.n600, whiteSpace: 'nowrap' }}>
+                              共 {grp.count} 筆 · 費用 {Math.round(grp.feeSum * 100) / 100} / 發票 {grp.invAmount != null ? grp.invAmount.toLocaleString() : '—'}
                             </div>
                           </div>
-                        ) : o.fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
+                        ) : o.fee_invoice_no
+                          ? <span style={{ fontSize: 12, color: T.n500 }}>↳ 同張發票</span>
+                          : <span style={{ fontSize: 12, color: T.n400 }}>未開立</span>}
                       </td>
                       {isLinePayOfficial && (
-                        <td
-                          style={{ ...td, fontFamily: 'monospace', fontSize: 12, cursor: o.tx_fee_invoice_no ? 'pointer' : 'default' }}
-                          onClick={o.tx_fee_invoice_no ? () => setViewTxInvKey(o.tx_fee_invoice_no) : undefined}
-                        >
+                        <td style={{ ...tdT, cursor: o.tx_fee_invoice_no ? 'pointer' : 'default' }}
+                          onClick={o.tx_fee_invoice_no ? () => setViewTxInvKey(o.tx_fee_invoice_no) : undefined}>
                           {isFirstTxInv && txGrp ? (
                             <div>
-                              <div style={{ color: C.brand, textDecoration: 'underline' }}>{o.tx_fee_invoice_no}</div>
-                              <div style={{ fontSize: 11, color: C.sub, marginTop: 2, whiteSpace: 'nowrap' }}>
-                                {txGrp.count} 筆・發票金額 {txGrp.invAmount != null ? txGrp.invAmount.toLocaleString() : '—'}
+                              <div style={{ fontFamily: 'monospace', fontSize: 13, color: T.a700, textDecoration: 'underline' }}>{o.tx_fee_invoice_no}</div>
+                              <div style={{ fontSize: 11, color: T.n600, marginTop: 2, whiteSpace: 'nowrap' }}>
+                                共 {txGrp.count} 筆 · 發票 {txGrp.invAmount != null ? txGrp.invAmount.toLocaleString() : '—'}
                               </div>
                             </div>
-                          ) : o.tx_fee_invoice_no ? <span style={{ fontSize: 11, color: C.sub }}>↑</span> : '—'}
+                          ) : o.tx_fee_invoice_no
+                            ? <span style={{ fontSize: 12, color: T.n500 }}>↳ 同張發票</span>
+                            : <span style={{ fontSize: 12, color: T.n400 }}>未開立</span>}
                         </td>
                       )}
+                      <td style={{ ...tdT, textAlign: 'right' }}>
+                        <button onClick={() => { setEditOrder({ ...o }); setEditMsg('') }} style={btnGhostT}>編輯</button>
+                      </td>
                     </tr>
                   )
                 })
               })()}
-              {shownOrders.length === 0 && (
-                <tr><td colSpan={16} style={{ ...td, textAlign: 'center', color: C.sub, padding: 24 }}>沒有資料</td></tr>
+              {searched.length === 0 && (
+                <tr><td colSpan={cols.length + 1} style={{ ...tdT, textAlign: 'center', color: T.n600, padding: 24 }}>沒有資料</td></tr>
               )}
             </tbody>
           </table>
         </div>
-      </Card>
+        <div style={{ marginTop: 12, fontSize: 12, color: T.n600 }}>
+          顯示 {searched.length} 筆 · 差異與狀態欄以顏色標示，一眼看出需要處理的訂單。
+        </div>
+      </div>
 
-      {/* LINE Pay / 信用卡 銀行對帳 */}
-      {(isLineMallLinePay || isLanxin || isLinePayOfficial || isPayuniCC) && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>
-            {isPayuniCC ? '玉山銀行對帳' : `玉山銀行對帳（${isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）`}
-          </strong>
-          {!isPayuniCC && (
-            <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-              以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款
-            </p>
-          )}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-            <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
-            <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
-            {bankFileName && <span style={{ fontSize: 12, color: C.sub }}>{bankFileName}</span>}
-          </div>
+      {/* ── 教學 SOP 側欄：依對帳步驟分卡，每步一段文字 + 一張截圖 ── */}
+      {sopOpen && (
+        <div onClick={() => { closeSopDrawer() }}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(22,35,63,.42)',
+            display: 'flex', justifyContent: 'flex-end' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: 'min(460px,92vw)', height: '100%', background: T.n100, boxShadow: T.shadowLg,
+              borderRadius: '28px 0 0 28px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '22px 26px', borderBottom: `1px solid ${T.divider}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: '.1em', color: T.a }}>教學 SOP</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: T.navy }}>{gwInfo.label} · 教學 SOP</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!sopEditing
+                  ? <button onClick={() => setSopEditing(true)} style={{ ...btnSec, fontSize: 13 }}>編輯</button>
+                  : <>
+                      <button onClick={openSopLinkForm} style={{ ...btnSec, fontSize: 13 }}>連結</button>
+                      <button onClick={saveSop} disabled={sopSaving} style={{ ...btnPri, fontSize: 13 }}>{sopSaving ? '儲存中…' : '完成'}</button>
+                      <button onClick={cancelSop} style={{ ...btnSec, fontSize: 13 }}>取消</button>
+                    </>}
+                <button onClick={() => { closeSopDrawer() }}
+                  aria-label="關閉" style={{ ...btnSec, padding: '8px 12px' }}>✕</button>
+              </div>
+            </div>
 
-          {/* 已確認入帳群組 — 從 DB 訂單計算，不依賴銀行對帳單是否上傳 */}
-          {(() => {
-            const confirmed = orders.filter(o => o.recon_status === '已入帳' && o.in_date)
-            if (confirmed.length === 0) return null
-            const groups = {}
-            confirmed.forEach(o => {
-              const k = (o.in_date || '').slice(0, 10)
-              if (!groups[k]) groups[k] = { date: k, orders: [], payable: 0 }
-              groups[k].orders.push(o)
-              groups[k].payable += o.payable || 0
-            })
-            const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
-            return (
-              <div style={{ marginTop: 14 }}>
-                <p style={{ fontSize: 12, color: C.sub, margin: '0 0 8px', fontWeight: 600 }}>已確認入帳</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {sorted.map(g => {
-                    const exp = !!confirmedGroupExp[g.date]
-                    return (
-                      <div key={g.date} style={{ border: '1.5px solid #a8d5c2', borderRadius: 10, padding: '10px 14px', background: '#f0faf5' }}>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 700, fontSize: 13 }}>入帳日：{g.date}</span>
-                          <span style={{ fontSize: 13 }}>應入帳合計：<strong style={{ color: C.brand }}>NT$ {(Math.round(g.payable * 100) / 100).toLocaleString()}</strong></span>
-                          <span style={{ fontSize: 12, color: C.sub }}>{g.orders.length} 筆</span>
-                          <button onClick={() => setConfirmedGroupExp(p => ({ ...p, [g.date]: !exp }))}
-                            style={{ ...btnGhost, fontSize: 11, padding: '2px 8px', marginLeft: 'auto' }}>
-                            {exp ? '收起 ▲' : '展開 ▼'}
-                          </button>
-                        </div>
-                        {exp && (
-                          <div style={{ marginTop: 8, borderTop: '1px solid #d0ece5', paddingTop: 8 }}>
-                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr style={{ color: C.sub }}>
-                                  <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
-                                  <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                  <th style={{ padding: '3px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {g.orders.sort((a, b) => (a.order_date || '').localeCompare(b.order_date || '')).map(o => (
-                                  <tr key={o.id} style={{ borderBottom: '1px solid #e8f5f0' }}>
-                                    <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
-                                    <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
-                                    <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+            <div style={{ padding: '22px 26px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ fontSize: 13, color: T.n600 }}>
+                依照對帳步驟編排，每一步要在哪個後台、怎麼下載檔案都寫在這裡。
+                {sopEditing ? '可直接編輯文字、插入連結，並為每一步拖入或選擇一張截圖。' : ''}
+              </div>
+
+              {sopMsg && <div style={{ fontSize: 13, color: T.danger }}>{sopMsg}</div>}
+
+              {sopEditing && sopLinkForm && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+                  padding: '10px 14px', background: T.a100, borderRadius: T.rInner }}>
+                  <span style={{ fontSize: 12, color: T.n600, flexShrink: 0 }}>插入連結</span>
+                  <input value={sopLinkText} onChange={e => setSopLinkText(e.target.value)} placeholder="顯示文字" style={{ ...inpT, width: 120 }} />
+                  <input value={sopLinkUrl} onChange={e => setSopLinkUrl(e.target.value)} placeholder="https://..."
+                    style={{ ...inpT, width: 180 }} onKeyDown={e => e.key === 'Enter' && insertSopLink()} />
+                  <button onClick={insertSopLink} style={{ ...btnPri, fontSize: 13 }}>插入</button>
+                  <button onClick={() => setSopLinkForm(false)} style={{ ...btnSec, fontSize: 13 }}>取消</button>
+                </div>
+              )}
+
+              {stepDefs.map((s, i) => {
+                const d = sopStepData(s.key)
+                const showSlot = sopEditing || !!d.img   // 定稿模式沒圖就整格隱藏
+                return (
+                  <div key={s.key} style={{ background: T.surface, borderRadius: T.rPanel,
+                    padding: '16px 18px', boxShadow: T.shadowSm }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ width: 24, height: 24, flex: 'none', borderRadius: '50%', background: T.a,
+                        color: '#fff', display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 700 }}>{i + 1}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700 }}>{s.title}</span>
+                    </div>
+
+                    {SOURCE_HINT[s.key] && (
+                      <div style={{ fontSize: 12, color: T.n600, lineHeight: 1.7, marginBottom: 8 }}>
+                        <strong style={{ color: T.navy }}>預設路徑：</strong>{SOURCE_HINT[s.key]}
+                      </div>
+                    )}
+
+                    {sopEditing ? (
+                      <div
+                        ref={el => { sopRefs.current[s.key] = el }}
+                        contentEditable
+                        suppressContentEditableWarning
+                        onFocus={() => { sopFocusEl.current = sopRefs.current[s.key] }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.execCommand('insertLineBreak') } }}
+                        style={{
+                          minHeight: 70, padding: '10px 12px', borderRadius: T.rInner,
+                          border: `1.5px solid ${T.a}`, background: T.surface,
+                          fontSize: 13, lineHeight: 1.85, outline: 'none',
+                          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{ fontSize: 13, lineHeight: 1.85, color: T.n700,
+                          whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        dangerouslySetInnerHTML={{
+                          __html: d.html ||
+                            `<span style="color:${T.n500};font-style:italic">尚未填寫，點右上角「編輯」補上</span>`
+                        }}
+                      />
+                    )}
+
+                    {showSlot && (
+                      <div
+                        onDragOver={sopEditing ? (e => e.preventDefault()) : undefined}
+                        onDrop={sopEditing ? (e => {
+                          e.preventDefault()
+                          const f = e.dataTransfer.files?.[0]
+                          if (f && f.type.startsWith('image/')) uploadSopStepImage(s.key, f)
+                        }) : undefined}
+                        style={{ marginTop: 12, borderRadius: T.rInner, overflow: 'hidden',
+                          border: d.img ? `1px solid ${T.divider}` : `1px dashed ${T.divider}`,
+                          background: d.img ? T.surface : T.bg, position: 'relative',
+                          minHeight: d.img ? undefined : 140,
+                          display: d.img ? 'block' : 'grid', placeItems: 'center' }}>
+                        {d.img ? (
+                          <>
+                            <a href={d.img} target="_blank" rel="noopener noreferrer">
+                              <img src={d.img} alt={`${s.title} 截圖`} style={{ width: '100%', display: 'block' }} />
+                            </a>
+                            {sopEditing && (
+                              <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+                                <label style={{ ...slotChipBtn, display: 'inline-block' }}>
+                                  {sopUploading === s.key ? '上傳中…' : '更換'}
+                                  <input type="file" accept="image/*" style={{ display: 'none' }}
+                                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadSopStepImage(s.key, f); e.target.value = '' }} />
+                                </label>
+                                <button onClick={() => removeSopStepImage(s.key)} aria-label="移除截圖" style={slotChipBtn}>
+                                  移除
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <label style={{ display: 'grid', placeItems: 'center', gap: 6, padding: 16,
+                            cursor: 'pointer', textAlign: 'center', width: '100%' }}>
+                            <input type="file" accept="image/*" style={{ display: 'none' }}
+                              onChange={e => { const f = e.target.files?.[0]; if (f) uploadSopStepImage(s.key, f); e.target.value = '' }} />
+                            <span style={{ fontSize: 20, color: T.n400 }}>＋</span>
+                            <span style={{ fontSize: 12, color: T.n600 }}>
+                              {sopUploading === s.key ? '上傳中…' : `拖入或點擊上傳截圖：${s.title}（選填）`}
+                            </span>
+                          </label>
                         )}
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
-
-          {bankRows.length > 0 && (() => {
-            // 從已上傳的撥款報表（rows1）建立「銀行入帳日 → 預計金額」對照表
-            // 蘭新信用卡撥款日隔天才到玉山帳戶，所以用 payoutDate+1 當 bankDate
-            const linepayByDate = {}
-            const payoutRows = isLinePayOfficial
-              ? (rows1 && rows2 ? parseOfficialLinePayReconDual(rows1, rows2) : [])
-              : isLanxin
-                ? (rows1 ? RECON_PARSERS.lanxin(rows1) : [])
-                : (rows1 ? RECON_PARSERS.linepay(rows1) : [])
-            payoutRows.forEach(r => {
-              const payoutDate = (r.in_date || '').slice(0, 10)
-              if (!payoutDate) return
-              let bankDate = payoutDate
-              if (isLanxin) {
-                const d = new Date(payoutDate + 'T00:00:00Z')
-                d.setUTCDate(d.getUTCDate() + 1)
-                bankDate = d.toISOString().slice(0, 10)
-              }
-              if (!linepayByDate[bankDate]) linepayByDate[bankDate] = { expected: 0, count: 0, payoutDate }
-              linepayByDate[bankDate].expected += r.payable || 0
-              linepayByDate[bankDate].count++
-            })
-            const hasPayoutMap = Object.keys(linepayByDate).length > 0
-
-            // payuniCC / LINE Pay / 蘭新: 手動選取訂單，直接顯示全部銀行入帳
-            // isLinePayOfficial: 已篩帳號，直接顯示全部
-            // 其他金流（若未來新增）: 以撥款報表日期過濾
-            const displayRows = (isManualSelection || isLinePayOfficial)
-              ? bankRows
-              : hasPayoutMap
-                ? bankRows.filter(br => linepayByDate[br.date] !== undefined)
-                : bankRows
-
-            async function batchConfirm() {
-              const selected = [...bankEntryChecked]
-              if (!selected.length) return
-              setBankMsg(p => { const n = {...p}; selected.forEach(i => { n[i] = '寫入中…' }); return n })
-              let hasErr = false
-              for (const idx of selected) {
-                const br = displayRows[idx]
-                if (!br) continue
-                const dateOrders = isLinePayOfficial
-                  ? orders.filter(o => o.recon_status !== '已入帳')
-                  : (() => {
-                      const payoutInfo = linepayByDate[br.date]
-                      const matchDate = payoutInfo?.payoutDate || br.date
-                      return orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
-                    })()
-                for (const o of dateOrders) {
-                  const { error } = await supabase.from('shipping_orders')
-                    .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
-                  if (error) { hasErr = true; break }
-                }
-                if (!hasErr) {
-                  if (isLinePayOfficial && txFeeAccRows.length > 0) {
-                    setTxFeeAccInDate(p => {
-                      const n = { ...p }
-                      txFeeAccRows.forEach((_, i) => { n[i] = br.date })
-                      return n
-                    })
-                  }
-                  setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
-                } else break
-              }
-              if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
-            }
-
-            const allChecked = displayRows.length > 0 && bankEntryChecked.size === displayRows.length
-
-            return (
-              <div style={{ marginTop: 14 }}>
-                {!isLinePayOfficial && !isManualSelection && !hasPayoutMap && (
-                  <p style={{ fontSize: 12, color: C.warn, margin: '0 0 10px' }}>
-                    ⚠ 尚未上傳撥款報表，無法自動篩選。請先在上方對帳區上傳報表。
-                  </p>
-                )}
-                {!isLinePayOfficial && !isManualSelection && hasPayoutMap && displayRows.length === 0 && (
-                  <p style={{ fontSize: 12, color: C.danger, margin: '0 0 10px' }}>
-                    ⚠ 撥款日期未對到銀行入帳日。撥款報表日期：{Object.keys(linepayByDate).slice(0, 5).join('、')}；銀行對帳單日期：{bankRows.slice(0, 5).map(r => r.date).join('、')}
-                  </p>
-                )}
-                {!isManualSelection && (
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                    <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={allChecked}
-                        onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
-                      全選
-                    </label>
-                    {bankEntryChecked.size > 0 && (
-                      <button onClick={batchConfirm} style={{ ...btnPrimary, fontSize: 13 }}>
-                        批次確認入帳（{bankEntryChecked.size} 筆）
-                      </button>
                     )}
                   </div>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {displayRows.map((br, idx) => {
-                    const payoutInfo = isLinePayOfficial ? null : linepayByDate[br.date]
-                    const expected = payoutInfo ? Math.round(payoutInfo.expected * 100) / 100 : null
-                    const diff = expected != null ? Math.round((br.deposit - expected) * 100) / 100 : null
-                    const isMatch = diff != null && Math.abs(diff) <= 2
-                    const expanded = !!bankExpanded[idx]
-                    const matchDate = payoutInfo?.payoutDate || br.date
-                    const dateOrders = ((isLinePayOfficial || isManualSelection)
-                      ? orders.filter(o => o.recon_status !== '已入帳')
-                      : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
-                    ).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
-                    const ccSel = isManualSelection ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
-                    const selectedOrders = isManualSelection ? dateOrders.filter(o => ccSel.has(String(o.id))) : dateOrders
-                    const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
-                    const ccDiff = isManualSelection && ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
-                    const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
-                    const txFeeTotal = txFeeAccRows.reduce((s, r) => s + r.fee, 0)
-                    const entryChecked = bankEntryChecked.has(idx)
-                    const isDone = !!bankMsg[idx]?.startsWith('✓')
-                    const cardBorderColor = isManualSelection
-                      ? (ccSel.size > 0 ? (ccMatch ? '#a8d5c2' : C.danger) : '#e0e0e0')
-                      : (entryChecked ? C.brand : isMatch ? '#a8d5c2' : diff != null ? C.danger : '#e0e0e0')
-                    const cardBg = isManualSelection
-                      ? (ccSel.size > 0 && ccMatch ? '#f0faf5' : '#fff')
-                      : (entryChecked ? C.brandBg : isMatch ? '#f0faf5' : '#fff')
-                    return (
-                      <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: 10, padding: '12px 16px', background: cardBg }}>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                          {!isPayuniCC && !isDone && (
-                            <input type="checkbox" checked={entryChecked}
-                              onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
-                          )}
-                          <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
-                          {!isDone && (isLinePayOfficial || isPayuniCC) && br.summary && (
-                            <span style={{ fontSize: 12, color: C.sub, fontFamily: 'monospace' }}>{br.summary}</span>
-                          )}
-                          {!isDone && expected != null && (
-                            <span style={{ fontSize: 13, color: C.sub }}>
-                              {isLanxin ? '蘭新預計撥款：' : 'LINE Pay 預計：'}<strong>NT$ {expected.toLocaleString()}</strong>（{payoutInfo.count} 筆）{payoutInfo.payoutDate && isLanxin && <span style={{ fontSize: 11, marginLeft: 4 }}>撥款日 {payoutInfo.payoutDate}</span>}
-                            </span>
-                          )}
-                          <span style={{ fontSize: 13 }}>
-                            銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong>
-                          </span>
-                          {!isDone && isManualSelection && ccSel.size > 0 && (
-                            <span style={{ fontSize: 13 }}>
-                              已選：<strong>NT$ {ordersPayable.toLocaleString()}</strong>
-                              {ccDiff != null && (
-                                <span style={{ marginLeft: 6, fontWeight: 700, color: ccMatch ? C.brand : C.danger }}>
-                                  差異：{ccDiff > 0 ? '+' : ''}{ccDiff}{ccMatch && ' ✓'}
-                                </span>
-                              )}
-                            </span>
-                          )}
-                          {!isDone && isLinePayOfficial && txFeeAccRows.length > 0 && (
-                            <span style={{ fontSize: 13, color: C.danger }}>
-                              交易處理費：<strong>-NT$ {txFeeTotal.toLocaleString()}</strong>（{txFeeAccRows.length} 筆）
-                            </span>
-                          )}
-                          {!isDone && !isManualSelection && <span style={{ fontSize: 11, color: C.sub, fontFamily: 'monospace' }}>{br.account}</span>}
-                          {!isDone && diff != null && (
-                            <span style={{ fontSize: 13, fontWeight: 700, color: isMatch ? C.brand : C.danger }}>
-                              差異：{diff > 0 ? '+' : ''}{diff}
-                              {isMatch && ' ✓'}
-                            </span>
-                          )}
-                          {!isDone && dateOrders.length > 0 && (
-                            <button
-                              onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
-                              style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}
-                            >{expanded ? '收起 ▲' : `選取訂單 ▼ (${dateOrders.length})`}</button>
-                          )}
-                          {!isDone && (isManualSelection ? ccSel.size > 0 : dateOrders.length > 0) && (
-                            <button
-                              onClick={() => confirmBankEntry(idx, br, dateOrders)}
-                              style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}
-                            >{isManualSelection ? `確認入帳（${ccSel.size} 筆）` : '確認入帳'}</button>
-                          )}
-                          {bankMsg[idx] && (
-                            <span style={{ fontSize: 12, marginLeft: 'auto', color: bankMsg[idx].includes('❌') ? C.danger : C.brand }}>
-                              {bankMsg[idx]}
-                            </span>
-                          )}
-                        </div>
+                )
+              })}
 
-                        {!isDone && expanded && dateOrders.length > 0 && (
-                          <div style={{ marginTop: 10, borderTop: '1px solid #f0f0f0', paddingTop: 10 }}>
-                            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr style={{ color: C.sub }}>
-                                  {isManualSelection && <th style={{ padding: '4px 6px', width: 24 }}></th>}
-                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
-                                  <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                  {isLinePayOfficial && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>應撥款日</th>}
-                                  {isLinePayOfficial && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>實際撥款日</th>}
-                                  {isManualSelection && !isLinePayOfficial && <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>付款方式</th>}
-                                  <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {dateOrders.map(o => {
-                                  const oChecked = isManualSelection && ccSel.has(String(o.id))
-                                  return (
-                                  <tr key={o.id} style={{ borderBottom: '1px solid #f5f5f5', background: oChecked ? C.brandBg : 'transparent' }}>
-                                    {isManualSelection && (
-                                      <td style={{ padding: '4px 6px' }}>
-                                        <input type="checkbox" checked={oChecked} onChange={() => {
-                                          setBankCCOrderSel(p => {
-                                            const prev = p[idx] ? new Set(p[idx]) : new Set()
-                                            prev.has(String(o.id)) ? prev.delete(String(o.id)) : prev.add(String(o.id))
-                                            return { ...p, [idx]: prev }
-                                          })
-                                        }} />
-                                      </td>
-                                    )}
-                                    <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
-                                    <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
-                                    {isLinePayOfficial && <td style={{ padding: '4px 6px' }}>{o.in_date || '—'}</td>}
-                                    {isLinePayOfficial && <td style={{ padding: '4px 6px', color: br.actualDate !== (o.in_date || '').slice(0, 10) ? C.warn : '#222' }}>{br.actualDate || '—'}</td>}
-                                    {isManualSelection && !isLinePayOfficial && <td style={{ padding: '4px 6px', fontSize: 11, color: C.sub }}>{o.pay_method || '—'}</td>}
-                                    <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
-                                  </tr>
-                                  )
-                                })}
-                                <tr style={{ borderTop: '1px solid #ddd', fontWeight: 600 }}>
-                                  <td colSpan={isLinePayOfficial ? 5 : 4} style={{ padding: '6px 6px', color: C.sub, fontSize: 11 }}>
-                                    {isManualSelection ? `已選 ${ccSel.size} 筆合計` : '訂單合計'}
-                                  </td>
-                                  <td style={{ padding: '6px 6px', textAlign: 'right' }}>{ordersPayable.toLocaleString()}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                            </div>
-                            {isLinePayOfficial && txFeeAccRows.length > 0 && (
-                              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
-                                <thead>
-                                  <tr style={{ color: C.sub }}>
-                                    <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>處理序號</th>
-                                    <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 400 }}>日期</th>
-                                    <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 400, color: C.danger }}>交易處理費（負）</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {txFeeAccRows.map((r, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                      <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{r.procNo || '—'}</td>
-                                      <td style={{ padding: '4px 6px' }}>{r.date || '—'}</td>
-                                      <td style={{ padding: '4px 6px', textAlign: 'right', color: C.danger }}>-{r.fee.toLocaleString()}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+              <div style={{ border: `1px dashed ${T.divider}`, borderRadius: T.rPanel, padding: '14px 18px',
+                fontSize: 12, color: T.n600 }}>
+                💡 這份 SOP 會隨通路切換各自獨立，每個平台（酷澎／蝦皮／官網／LINE商城）都有自己的一份。
               </div>
-            )
-          })()}
-        </Card>
+            </div>
+          </div>
+        </div>
       )}
-
-      {/* 訂單發票輸入（蝦皮專屬） */}
-      {isShopee && (() => {
-        const amtNum = parseFloat(ordInvEntryAmount) || 0
-        const previewOrders = ordInvEntryMethod === 'auto'
-          ? (ordInvEntryPreview || [])
-          : orders.filter(o => !o.order_invoice_no).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
-        const selectedOrders = ordInvEntryMethod === 'auto'
-          ? (ordInvEntryPreview || [])
-          : orders.filter(o => ordInvEntryChecked.has(o.id))
-        const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.order_invoice_amount || 0), 0) * 100) / 100
-        const diff = Math.round((totalSum - amtNum) * 100) / 100
-        const isMatch = amtNum > 0 && diff === 0
-        const hasSel = selectedOrders.length > 0
-        return (
-          <Card>
-            <strong style={{ fontSize: 14 }}>訂單發票輸入</strong>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-end' }}>
-              <Field label="發票號碼">
-                <input value={ordInvEntryNo} onChange={e => setOrdInvEntryNo(e.target.value)} placeholder="AB-12345678" style={inp} />
-              </Field>
-              <Field label="發票日期">
-                <input type="date" value={ordInvEntryDate} onChange={e => setOrdInvEntryDate(e.target.value)} style={inp} />
-              </Field>
-              <Field label="發票金額（含稅）">
-                <input type="number" value={ordInvEntryAmount} onChange={e => setOrdInvEntryAmount(e.target.value)} placeholder="0" style={inp} />
-              </Field>
-            </div>
-
-            <div style={{ display: 'flex', margin: '12px 0', gap: 0 }}>
-              {[['auto', '方式 A — 期間篩選'], ['manual', '方式 B — 手動勾選']].map(([v, lbl], i) => (
-                <button key={v} onClick={() => { setOrdInvEntryMethod(v); setOrdInvEntryPreview(null); setOrdInvEntryChecked(new Set()); setOrdInvEntryMsg('') }} style={{
-                  padding: '6px 14px', border: `1px solid ${C.line}`, cursor: 'pointer', fontSize: 13,
-                  background: ordInvEntryMethod === v ? C.brand : '#fff', color: ordInvEntryMethod === v ? '#fff' : C.sub,
-                  borderRadius: i === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
-                }}>{lbl}</button>
-              ))}
-            </div>
-
-            {ordInvEntryMethod === 'auto' && (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <Field label="訂單日期起"><input type="date" value={ordInvEntryFrom} onChange={e => setOrdInvEntryFrom(e.target.value)} style={inp} /></Field>
-                <Field label="訂單日期訖"><input type="date" value={ordInvEntryTo} onChange={e => setOrdInvEntryTo(e.target.value)} style={inp} /></Field>
-                <div style={{ paddingBottom: 2 }}><button onClick={runOrdInvEntryPreview} style={btnPrimary}>查詢</button></div>
-              </div>
-            )}
-
-            {ordInvEntryMethod === 'manual' && (
-              <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto', marginBottom: 8 }}>
-                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
-                  <thead>
-                    <tr>
-                      <th style={th}>
-                        <input type="checkbox"
-                          checked={previewOrders.length > 0 && ordInvEntryChecked.size === previewOrders.length}
-                          onChange={() => {
-                            if (ordInvEntryChecked.size === previewOrders.length) setOrdInvEntryChecked(new Set())
-                            else setOrdInvEntryChecked(new Set(previewOrders.map(o => o.id)))
-                          }} />
-                      </th>
-                      {['平台訂單編號', '訂單日期', '代收付發票金額'].map(c => <th key={c} style={th}>{c}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewOrders.length === 0 && (
-                      <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: C.sub }}>所有訂單都已有發票號碼</td></tr>
-                    )}
-                    {previewOrders.map((o, i) => (
-                      <tr key={i} style={{ background: ordInvEntryChecked.has(o.id) ? C.brandBg : '#fff' }}>
-                        <td style={td}><input type="checkbox" checked={ordInvEntryChecked.has(o.id)}
-                          onChange={() => {
-                            const s = new Set(ordInvEntryChecked)
-                            s.has(o.id) ? s.delete(o.id) : s.add(o.id)
-                            setOrdInvEntryChecked(s)
-                          }} /></td>
-                        <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
-                        <td style={td}>{o.order_date || '—'}</td>
-                        <td style={{ ...td, textAlign: 'right' }}>{(o.order_invoice_amount ?? 0).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {(hasSel || (ordInvEntryPreview && ordInvEntryMethod === 'auto')) && (
-              <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 10,
-                background: isMatch ? C.brandBg : diff !== 0 && amtNum > 0 ? C.warnBg : '#f5f5f5',
-                display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13 }}>訂單筆數：<strong>{selectedOrders.length}</strong></span>
-                <span style={{ fontSize: 13 }}>代收付發票金額加總：<strong>{totalSum.toLocaleString()}</strong></span>
-                {amtNum > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{amtNum.toLocaleString()}</strong></span>}
-                {amtNum > 0 && (
-                  <span style={{ fontSize: 13, color: isMatch ? C.brand : C.danger, fontWeight: 600 }}>
-                    差異：{diff.toLocaleString()}　{isMatch ? '✓ 相符' : '✗ 有差異'}
-                  </span>
-                )}
-                <button onClick={runApplyOrdInvEntry} style={btnPrimary}>套用</button>
-              </div>
-            )}
-            {ordInvEntryMsg && (
-              <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-                color: ordInvEntryMsg.includes('錯誤') || ordInvEntryMsg.includes('請') ? C.danger : C.brand }}>
-                {ordInvEntryMsg}
-              </p>
-            )}
-          </Card>
-        )
-      })()}
-
-      {/* 發票核對 */}
-      <Card>
-        <strong style={{ fontSize: 14 }}>發票核對（手續費進項發票）</strong>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-end' }}>
-          <Field label="發票號碼">
-            <input value={invNo} onChange={e => setInvNo(e.target.value)} placeholder="AB-12345678" style={inp} />
-          </Field>
-          <Field label="發票日期">
-            <input type="date" value={invDate} onChange={e => setInvDate(e.target.value)} style={inp} />
-          </Field>
-          <Field label="發票金額">
-            <input type="number" value={invAmount} onChange={e => setInvAmount(e.target.value)} placeholder="0" style={inp} />
-          </Field>
-        </div>
-
-        <div style={{ display: 'flex', margin: '12px 0', gap: 0 }}>
-          {[['auto', '方式 A — 期間篩選'], ['manual', '方式 B — 手動勾選']].map(([v, lbl], i) => (
-            <button key={v} onClick={() => switchMethod(v)} style={{
-              padding: '6px 14px', border: `1px solid ${C.line}`, cursor: 'pointer', fontSize: 13,
-              background: invMethod === v ? C.brand : '#fff', color: invMethod === v ? '#fff' : C.sub,
-              borderRadius: i === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
-            }}>{lbl}</button>
-          ))}
-        </div>
-
-        {invMethod === 'auto' && (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <Field label="期間起"><input type="date" value={invFrom} onChange={e => setInvFrom(e.target.value)} style={inp} /></Field>
-            <Field label="期間訖"><input type="date" value={invTo} onChange={e => setInvTo(e.target.value)} style={inp} /></Field>
-            <div style={{ paddingBottom: 2 }}><button onClick={runInvPreviewAuto} style={btnPrimary}>查詢</button></div>
-          </div>
-        )}
-
-        {invMethod === 'manual' && (
-          <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto', marginBottom: 8 }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
-              <thead>
-                <tr>
-                  <th style={th}>
-                    <input type="checkbox"
-                      checked={manualOrders.length > 0 && checkedIds.size === manualOrders.length}
-                      onChange={toggleAll} />
-                  </th>
-                  {['銷貨單號', '入帳日', '手續費'].map(c => <th key={c} style={th}>{c}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {manualOrders.length === 0 && (
-                  <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: C.sub }}>所有訂單都已歸發票</td></tr>
-                )}
-                {manualOrders.map((o, i) => (
-                  <tr key={i} style={{ background: checkedIds.has(o.id) ? C.brandBg : '#fff' }}>
-                    <td style={td}><input type="checkbox" checked={checkedIds.has(o.id)} onChange={() => toggleCheck(o.id)} /></td>
-                    <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
-                    <td style={td}>{o.in_date || o.order_date || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{(o.fee_total ?? 0).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {hasInvOrders && (
-          <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 10,
-            background: invIsMatch ? C.brandBg : invDiff != null ? C.warnBg : '#f5f5f5',
-            display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-            {invFeeSum != null && <span style={{ fontSize: 13 }}>手續費加總：<strong>{invFeeSum.toLocaleString()}</strong></span>}
-            {invAmountNum > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{invAmountNum.toLocaleString()}</strong></span>}
-            {invDiff != null && (
-              <span style={{ fontSize: 13, color: invIsMatch ? C.brand : C.danger, fontWeight: 600 }}>
-                差異：{invDiff.toLocaleString()}　{invIsMatch ? '✓ 相符' : '✗ 有差異'}
-              </span>
-            )}
-            <button onClick={runApplyInvoice} style={btnPrimary}>套用</button>
-          </div>
-        )}
-        {invMsg && (
-          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-            color: invMsg.includes('錯誤') ? C.danger : invMsg.includes('相符') ? C.brand : C.sub }}>
-            {invMsg}
-          </p>
-        )}
-      </Card>
 
       {/* 編輯 modal */}
       {editOrder && (
         <div style={overlay} onClick={() => setEditOrder(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0, fontSize: 15 }}>編輯訂單</h3>
-            <p style={{ fontSize: 12, color: C.sub, margin: '0 0 12px' }}>平台訂單編號：{editOrder.ref_no}</p>
+            <h3 style={{ marginTop: 0, fontSize: 20, color: T.navy }}>編輯訂單</h3>
+            <p style={{ fontSize: 13, color: T.n600, margin: '0 0 12px', fontFamily: 'monospace' }}>{editOrder.ref_no}</p>
             <Field label="銷貨單號（ERP SA 單號）">
               <input value={editOrder.sa_no || ''} onChange={e => setEditOrder(p => ({ ...p, sa_no: e.target.value }))}
-                placeholder="SA-XXXXXXXX" style={inp} />
+                placeholder="SA-XXXXXXXX" style={inpT} />
             </Field>
             <Field label="狀態">
-              <select value={editOrder.recon_status || ''} onChange={e => setEditOrder(p => ({ ...p, recon_status: e.target.value }))} style={inp}>
+              <select value={editOrder.recon_status || ''} onChange={e => setEditOrder(p => ({ ...p, recon_status: e.target.value }))} style={inpT}>
                 {['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳'].map(s => <option key={s}>{s}</option>)}
               </select>
             </Field>
             <Field label="訂單發票號碼">
               <input value={editOrder.order_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, order_invoice_no: e.target.value }))}
-                placeholder="AB-12345678" style={inp} />
+                placeholder="AB-12345678" style={inpT} />
             </Field>
             <Field label="手續費發票號碼">
               <input value={editOrder.fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, fee_invoice_no: e.target.value }))}
-                placeholder="AB-12345678" style={inp} />
+                placeholder="AB-12345678" style={inpT} />
             </Field>
             {isLinePayOfficial && (
               <Field label="交易處理費發票號碼">
                 <input value={editOrder.tx_fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, tx_fee_invoice_no: e.target.value }))}
-                  placeholder="AB-12345678" style={inp} />
+                  placeholder="AB-12345678" style={inpT} />
               </Field>
             )}
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
               <Field label="應入帳">
-                <input type="number" value={editOrder.payable ?? ''} onChange={e => setEditOrder(p => ({ ...p, payable: e.target.value }))} style={inp} />
+                <input type="number" value={editOrder.payable ?? ''} onChange={e => setEditOrder(p => ({ ...p, payable: e.target.value }))} style={inpT} />
               </Field>
               <Field label="實際入帳">
-                <input type="number" value={editOrder.actual_in ?? ''} onChange={e => setEditOrder(p => ({ ...p, actual_in: e.target.value }))} style={inp} />
+                <input type="number" value={editOrder.actual_in ?? ''} onChange={e => setEditOrder(p => ({ ...p, actual_in: e.target.value }))} style={inpT} />
               </Field>
               <Field label="入帳日">
-                <input type="date" value={editOrder.in_date || ''} onChange={e => setEditOrder(p => ({ ...p, in_date: e.target.value }))} style={inp} />
+                <input type="date" value={editOrder.in_date || ''} onChange={e => setEditOrder(p => ({ ...p, in_date: e.target.value }))} style={inpT} />
               </Field>
             </div>
             <Field label="備註">
-              <textarea value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+              <textarea value={editOrder.note || ''} onChange={e => setEditOrder(p => ({ ...p, note: e.target.value }))} rows={4}
+                style={{ ...inpT, borderRadius: T.rInner, resize: 'vertical', lineHeight: 1.6 }} />
             </Field>
-            {editMsg && <p style={{ fontSize: 13, color: editMsg.includes('錯誤') ? C.danger : C.sub, margin: '4px 0' }}>{editMsg}</p>}
+            {editMsg && <p style={{ fontSize: 13, color: editMsg.includes('錯誤') ? T.danger : T.n600, margin: '4px 0' }}>{editMsg}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setEditOrder(null)} style={btnGhost}>取消</button>
-              <button onClick={() => saveEditOrder(editOrder)} style={btnPrimary}>儲存</button>
+              <button onClick={() => setEditOrder(null)} style={btnSec}>取消</button>
+              <button onClick={() => saveEditOrder(editOrder)} style={btnPri}>儲存</button>
             </div>
           </div>
         </div>
@@ -2234,71 +2940,64 @@ function GatewayWorkspace({ gateway }) {
       {viewInvKey && (() => {
         const grp = invoiceGroups[viewInvKey]
         if (!grp) return null
-        const checkColor = grp.invoiceCheck === '相符' ? C.brand : grp.invoiceCheck === '有差異' ? C.danger : C.sub
+        const checkColor = grp.invoiceCheck === '相符' ? T.g700 : grp.invoiceCheck === '有差異' ? T.danger : T.n600
         const staticRows = [
           ['手續費發票號碼', viewInvKey, 'monospace'],
           ['手續費合計', `NT$ ${Math.round(grp.feeSum * 100) / 100}`, 'inherit'],
           ['包含訂單', `${grp.count} 筆`, 'inherit'],
           ['核對結果', grp.invoiceCheck || '—', 'inherit'],
         ]
-        const popupInp = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
         return (
           <div style={overlay} onClick={() => setViewInvKey(null)}>
-            <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ marginTop: 0, fontSize: 15 }}>發票資訊</h3>
+            <div style={{ ...modal, width: 400 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 20, color: T.navy }}>發票資訊</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>手續費發票號碼</td>
-                    <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewInvKey}</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>手續費發票號碼</td>
+                    <td style={{ ...mVal, fontFamily: 'monospace' }}>{viewInvKey}</td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>發票日期</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>發票日期</td>
                     <td style={{ padding: '6px 0' }}>
                       <input type="date" value={invPopupDate} onChange={e => setInvPopupDate(e.target.value)}
                         onBlur={e => saveInvPopupDate(e.target.value)} style={popupInp} />
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>發票金額</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>發票金額</td>
                     <td style={{ padding: '6px 0' }}>
                       <input type="number" value={invPopupAmount} onChange={e => setInvPopupAmount(e.target.value)}
                         onBlur={e => saveInvPopupAmount(e.target.value)} placeholder="0" style={popupInp} />
                     </td>
                   </tr>
                   {staticRows.map(([label, val, ff]) => (
-                    <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>{label}</td>
-                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? checkColor : '#222', fontFamily: ff }}>{val}</td>
+                    <tr key={label} style={mRow}>
+                      <td style={mLabel}>{label}</td>
+                      <td style={{ ...mVal, fontWeight: label === '核對結果' ? 700 : 400, color: label === '核對結果' ? checkColor : T.text, fontFamily: ff }}>{val}</td>
                     </tr>
                   ))}
                   <tr>
-                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>備注</td>
-                    <td style={{ padding: '8px 0' }}>
-                      <textarea
-                        value={invNote}
-                        onChange={e => setInvNote(e.target.value)}
-                        onBlur={e => saveInvNote(e.target.value)}
-                        placeholder="輸入備注…"
-                        rows={3}
-                        style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                      />
+                    <td style={{ ...mLabel, verticalAlign: 'top' }}>備注</td>
+                    <td style={mVal}>
+                      <textarea value={invNote} onChange={e => setInvNote(e.target.value)}
+                        onBlur={e => saveInvNote(e.target.value)} placeholder="輸入備注…" rows={3} style={popupArea} />
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>發票 PDF</td>
-                    <td style={{ padding: '8px 0' }}>
+                    <td style={{ ...mLabel, verticalAlign: 'top' }}>發票 PDF</td>
+                    <td style={mVal}>
                       <input ref={invPdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={uploadInvPdf} />
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button onClick={() => invPdfRef.current.click()} style={{ ...btnGhost, fontSize: 12 }} disabled={invUploading}>
+                        <button onClick={() => invPdfRef.current.click()} style={{ ...btnSec, fontSize: 12 }} disabled={invUploading}>
                           {invUploading ? '上傳中…' : invPdfUrl ? '重新上傳' : '上傳 PDF'}
                         </button>
                         {invPdfUrl && (
                           <a href={invPdfUrl} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: C.brand, textDecoration: 'underline' }}>查看 PDF</a>
+                            style={{ fontSize: 12, color: T.a700, textDecoration: 'underline' }}>查看 PDF</a>
                         )}
                       </div>
-                      {invUploadError && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{invUploadError}</div>}
+                      {invUploadError && <div style={{ fontSize: 12, color: T.danger, marginTop: 4 }}>{invUploadError}</div>}
                     </td>
                   </tr>
                 </tbody>
@@ -2306,20 +3005,20 @@ function GatewayWorkspace({ gateway }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
                 {!invDeleteConfirm ? (
                   <button onClick={() => setInvDeleteConfirm(true)}
-                    style={{ ...btnGhost, color: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                    style={{ ...btnSec, color: T.danger, borderColor: T.danger, fontSize: 12 }}>
                     刪除發票資訊
                   </button>
                 ) : (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: C.danger }}>確定刪除？</span>
+                    <span style={{ fontSize: 12, color: T.danger }}>確定刪除？</span>
                     <button onClick={deleteInvoice}
-                      style={{ ...btnPrimary, background: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                      style={{ ...btnPri, background: T.danger, borderColor: T.danger, fontSize: 12 }}>
                       確認
                     </button>
-                    <button onClick={() => setInvDeleteConfirm(false)} style={{ ...btnGhost, fontSize: 12 }}>取消</button>
+                    <button onClick={() => setInvDeleteConfirm(false)} style={{ ...btnSec, fontSize: 12 }}>取消</button>
                   </div>
                 )}
-                <button onClick={() => setViewInvKey(null)} style={btnGhost}>關閉</button>
+                <button onClick={() => setViewInvKey(null)} style={btnSec}>關閉</button>
               </div>
             </div>
           </div>
@@ -2331,71 +3030,64 @@ function GatewayWorkspace({ gateway }) {
         if (!txGrpDetail) return null
         const txAmt = parseFloat(txInvPopupAmount) || null
         const txCheck = txAmt != null ? (Math.abs(txAmt - txGrpDetail.txFeeSum) < 0.01 ? '相符' : '有差異') : null
-        const txCheckColor = txCheck === '相符' ? C.brand : txCheck === '有差異' ? C.danger : C.sub
+        const txCheckColor = txCheck === '相符' ? T.g700 : txCheck === '有差異' ? T.danger : T.n600
         const txStaticRows = [
           ['交易處理費發票號碼', viewTxInvKey, 'monospace'],
           ['交易處理費合計', `NT$ ${Math.round(txGrpDetail.txFeeSum * 100) / 100}`, 'inherit'],
           ['包含訂單', `${txGrpDetail.count} 筆`, 'inherit'],
           ['核對結果', txCheck || '—', 'inherit'],
         ]
-        const popupInp2 = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
         return (
           <div style={overlay} onClick={() => setViewTxInvKey(null)}>
-            <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ marginTop: 0, fontSize: 15 }}>交易處理費發票資訊</h3>
+            <div style={{ ...modal, width: 400 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 20, color: T.navy }}>交易處理費發票資訊</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>交易處理費發票號碼</td>
-                    <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewTxInvKey}</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>交易處理費發票號碼</td>
+                    <td style={{ ...mVal, fontFamily: 'monospace' }}>{viewTxInvKey}</td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>發票日期</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>發票日期</td>
                     <td style={{ padding: '6px 0' }}>
                       <input type="date" value={txInvPopupDate} onChange={e => { setTxInvPopupDate(e.target.value); saveTxInvPopupDate(e.target.value) }}
-                        style={popupInp2} />
+                        style={popupInp} />
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>發票金額</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>發票金額</td>
                     <td style={{ padding: '6px 0' }}>
                       <input type="number" value={txInvPopupAmount} onChange={e => setTxInvPopupAmount(e.target.value)}
-                        onBlur={e => saveTxInvPopupAmount(e.target.value)} placeholder="0" style={popupInp2} />
+                        onBlur={e => saveTxInvPopupAmount(e.target.value)} placeholder="0" style={popupInp} />
                     </td>
                   </tr>
                   {txStaticRows.map(([label, val, ff]) => (
-                    <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '8px 0', color: C.sub, width: 100 }}>{label}</td>
-                      <td style={{ padding: '8px 0', fontWeight: label === '核對結果' ? 600 : 400, color: label === '核對結果' ? txCheckColor : '#222', fontFamily: ff }}>{val}</td>
+                    <tr key={label} style={mRow}>
+                      <td style={mLabel}>{label}</td>
+                      <td style={{ ...mVal, fontWeight: label === '核對結果' ? 700 : 400, color: label === '核對結果' ? txCheckColor : T.text, fontFamily: ff }}>{val}</td>
                     </tr>
                   ))}
                   <tr>
-                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>備注</td>
-                    <td style={{ padding: '8px 0' }}>
-                      <textarea
-                        value={txInvNote}
-                        onChange={e => setTxInvNote(e.target.value)}
-                        onBlur={e => saveTxInvNote(e.target.value)}
-                        placeholder="輸入備注…"
-                        rows={3}
-                        style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                      />
+                    <td style={{ ...mLabel, verticalAlign: 'top' }}>備注</td>
+                    <td style={mVal}>
+                      <textarea value={txInvNote} onChange={e => setTxInvNote(e.target.value)}
+                        onBlur={e => saveTxInvNote(e.target.value)} placeholder="輸入備注…" rows={3} style={popupArea} />
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '8px 0', color: C.sub, verticalAlign: 'top' }}>發票 PDF</td>
-                    <td style={{ padding: '8px 0' }}>
+                    <td style={{ ...mLabel, verticalAlign: 'top' }}>發票 PDF</td>
+                    <td style={mVal}>
                       <input ref={txInvPdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={uploadTxInvPdf} />
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button onClick={() => txInvPdfRef.current.click()} style={{ ...btnGhost, fontSize: 12 }} disabled={txInvUploading}>
+                        <button onClick={() => txInvPdfRef.current.click()} style={{ ...btnSec, fontSize: 12 }} disabled={txInvUploading}>
                           {txInvUploading ? '上傳中…' : txInvPdfUrl ? '重新上傳' : '上傳 PDF'}
                         </button>
                         {txInvPdfUrl && (
                           <a href={txInvPdfUrl} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: C.brand, textDecoration: 'underline' }}>查看 PDF</a>
+                            style={{ fontSize: 12, color: T.a700, textDecoration: 'underline' }}>查看 PDF</a>
                         )}
                       </div>
-                      {txInvUploadError && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{txInvUploadError}</div>}
+                      {txInvUploadError && <div style={{ fontSize: 12, color: T.danger, marginTop: 4 }}>{txInvUploadError}</div>}
                     </td>
                   </tr>
                 </tbody>
@@ -2403,20 +3095,20 @@ function GatewayWorkspace({ gateway }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
                 {!txInvDeleteConfirm ? (
                   <button onClick={() => setTxInvDeleteConfirm(true)}
-                    style={{ ...btnGhost, color: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                    style={{ ...btnSec, color: T.danger, borderColor: T.danger, fontSize: 12 }}>
                     刪除發票資訊
                   </button>
                 ) : (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: C.danger }}>確定刪除？</span>
+                    <span style={{ fontSize: 12, color: T.danger }}>確定刪除？</span>
                     <button onClick={deleteTxInvoice}
-                      style={{ ...btnPrimary, background: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                      style={{ ...btnPri, background: T.danger, borderColor: T.danger, fontSize: 12 }}>
                       確認
                     </button>
-                    <button onClick={() => setTxInvDeleteConfirm(false)} style={{ ...btnGhost, fontSize: 12 }}>取消</button>
+                    <button onClick={() => setTxInvDeleteConfirm(false)} style={{ ...btnSec, fontSize: 12 }}>取消</button>
                   </div>
                 )}
-                <button onClick={() => setViewTxInvKey(null)} style={btnGhost}>關閉</button>
+                <button onClick={() => setViewTxInvKey(null)} style={btnSec}>關閉</button>
               </div>
             </div>
           </div>
@@ -2427,7 +3119,6 @@ function GatewayWorkspace({ gateway }) {
       {viewOrdInvKey && (() => {
         const grp = ordInvGroups[viewOrdInvKey]
         if (!grp) return null
-        const popupInpO = { fontSize: 13, padding: '3px 6px', borderRadius: 4, border: `1px solid ${C.line}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
         const saveOrdInvDate = async (date) => {
           await supabase.from('shipping_orders').update({ order_invoice_date: date || null }).eq('order_invoice_no', viewOrdInvKey)
           await loadOrders()
@@ -2442,50 +3133,50 @@ function GatewayWorkspace({ gateway }) {
         }
         return (
           <div style={overlay} onClick={() => setViewOrdInvKey(null)}>
-            <div style={{ ...modal, width: 380 }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ marginTop: 0, fontSize: 15 }}>訂單發票資訊</h3>
+            <div style={{ ...modal, width: 400 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 20, color: T.navy }}>訂單發票資訊</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub, width: 110 }}>訂單發票號碼</td>
-                    <td style={{ padding: '8px 0', fontFamily: 'monospace' }}>{viewOrdInvKey}</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>訂單發票號碼</td>
+                    <td style={{ ...mVal, fontFamily: 'monospace' }}>{viewOrdInvKey}</td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>發票日期</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>發票日期</td>
                     <td style={{ padding: '6px 0' }}>
                       <input type="date" value={ordInvPopupDate}
                         onChange={e => setOrdInvPopupDate(e.target.value)}
                         onBlur={e => saveOrdInvDate(e.target.value)}
-                        style={popupInpO} />
+                        style={popupInp} />
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>代收付發票金額</td>
-                    <td style={{ padding: '8px 0' }}>{Math.round(grp.invAmountSum * 100) / 100}</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>代收付發票金額</td>
+                    <td style={mVal}>{Math.round(grp.invAmountSum * 100) / 100}</td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '8px 0', color: C.sub }}>包含訂單</td>
-                    <td style={{ padding: '8px 0' }}>{grp.count} 筆</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>包含訂單</td>
+                    <td style={mVal}>{grp.count} 筆</td>
                   </tr>
                 </tbody>
               </table>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
                 {!ordInvDeleteConfirm ? (
                   <button onClick={() => setOrdInvDeleteConfirm(true)}
-                    style={{ ...btnGhost, color: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                    style={{ ...btnSec, color: T.danger, borderColor: T.danger, fontSize: 12 }}>
                     刪除發票資訊
                   </button>
                 ) : (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: C.danger }}>確定刪除？</span>
+                    <span style={{ fontSize: 12, color: T.danger }}>確定刪除？</span>
                     <button onClick={deleteOrdInvoice}
-                      style={{ ...btnPrimary, background: C.danger, borderColor: C.danger, fontSize: 12 }}>
+                      style={{ ...btnPri, background: T.danger, borderColor: T.danger, fontSize: 12 }}>
                       確認
                     </button>
-                    <button onClick={() => setOrdInvDeleteConfirm(false)} style={{ ...btnGhost, fontSize: 12 }}>取消</button>
+                    <button onClick={() => setOrdInvDeleteConfirm(false)} style={{ ...btnSec, fontSize: 12 }}>取消</button>
                   </div>
                 )}
-                <button onClick={() => setViewOrdInvKey(null)} style={btnGhost}>關閉</button>
+                <button onClick={() => setViewOrdInvKey(null)} style={btnSec}>關閉</button>
               </div>
             </div>
           </div>
@@ -2503,62 +3194,54 @@ function GatewayWorkspace({ gateway }) {
           setBankGroupNote(val)
           localStorage.setItem(noteKey, val)
         }
-        const rowStyle = { borderBottom: '1px solid #f0f0f0' }
-        const labelStyle = { padding: '8px 0', color: C.sub, width: 110, verticalAlign: 'top' }
-        const valStyle = { padding: '8px 0' }
         return (
           <div style={overlay} onClick={() => setViewBankGroupKey(null)}>
-            <div style={{ ...modal, width: 420 }} onClick={e => e.stopPropagation()}>
-              <h3 style={{ marginTop: 0, fontSize: 15 }}>入帳細節</h3>
+            <div style={{ ...modal, width: 440 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 20, color: T.navy }}>入帳細節</h3>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <tbody>
-                  <tr style={rowStyle}>
-                    <td style={labelStyle}>入帳日</td>
-                    <td style={{ ...valStyle, fontWeight: 600 }}>{viewBankGroupKey}</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>入帳日</td>
+                    <td style={{ ...mVal, fontWeight: 700 }}>{viewBankGroupKey}</td>
                   </tr>
-                  <tr style={rowStyle}>
-                    <td style={labelStyle}>玉山實際入帳</td>
-                    <td style={{ ...valStyle, fontWeight: 600 }}>
+                  <tr style={mRow}>
+                    <td style={mLabel}>玉山實際入帳</td>
+                    <td style={{ ...mVal, fontWeight: 700 }}>
                       {bankDeposit != null ? `NT$ ${bankDeposit.toLocaleString()}` : '—'}
                     </td>
                   </tr>
-                  <tr style={rowStyle}>
-                    <td style={labelStyle}>應入帳合計</td>
-                    <td style={valStyle}>NT$ {payableSum.toLocaleString()}</td>
+                  <tr style={mRow}>
+                    <td style={mLabel}>應入帳合計</td>
+                    <td style={mVal}>NT$ {payableSum.toLocaleString()}</td>
                   </tr>
                   {diff != null && (
-                    <tr style={rowStyle}>
-                      <td style={labelStyle}>差額</td>
-                      <td style={{ ...valStyle, fontWeight: 600, color: Math.abs(diff) < 0.01 ? C.brand : C.danger }}>
+                    <tr style={mRow}>
+                      <td style={mLabel}>差額</td>
+                      <td style={{ ...mVal, fontWeight: 700, color: Math.abs(diff) < 0.01 ? T.g700 : T.danger }}>
                         {diff === 0 ? '相符' : `${diff > 0 ? '+' : ''}${diff}`}
                       </td>
                     </tr>
                   )}
-                  <tr style={rowStyle}>
-                    <td style={{ ...labelStyle, verticalAlign: 'top', paddingTop: 10 }}>備注</td>
-                    <td style={{ ...valStyle }}>
-                      <textarea
-                        value={bankGroupNote}
-                        onChange={e => saveBankGroupNote(e.target.value)}
-                        placeholder="輸入備注（例如差額說明）…"
-                        rows={3}
-                        style={{ width: '100%', fontSize: 13, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.line}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                      />
+                  <tr style={mRow}>
+                    <td style={{ ...mLabel, verticalAlign: 'top' }}>備注</td>
+                    <td style={mVal}>
+                      <textarea value={bankGroupNote} onChange={e => saveBankGroupNote(e.target.value)}
+                        placeholder="輸入備注（例如差額說明）…" rows={3} style={popupArea} />
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ ...labelStyle, borderBottom: 'none' }}>包含訂單</td>
-                    <td style={{ ...valStyle, borderBottom: 'none' }}>
+                    <td style={{ ...mLabel, borderBottom: 'none' }}>包含訂單</td>
+                    <td style={{ ...mVal, borderBottom: 'none' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 2 }}>
                         <thead>
-                          <tr style={{ background: '#f8f8f8' }}>
-                            <th style={{ padding: '4px 6px', textAlign: 'left', fontWeight: 500, color: C.sub }}>訂單編號</th>
-                            <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 500, color: C.sub }}>應入帳</th>
+                          <tr style={{ background: T.n200 }}>
+                            <th style={subTh}>訂單編號</th>
+                            <th style={{ ...subTh, textAlign: 'right' }}>應入帳</th>
                           </tr>
                         </thead>
                         <tbody>
                           {bgOrders.map(o => (
-                            <tr key={o.id} style={{ borderTop: '1px solid #f0f0f0' }}>
+                            <tr key={o.id} style={{ borderTop: `1px solid ${T.divider}` }}>
                               <td style={{ padding: '4px 6px', fontFamily: 'monospace', fontSize: 11 }}>{o.ref_no}</td>
                               <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString() ?? '—'}</td>
                             </tr>
@@ -2570,386 +3253,22 @@ function GatewayWorkspace({ gateway }) {
                 </tbody>
               </table>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-                <button onClick={() => setViewBankGroupKey(null)} style={btnGhost}>關閉</button>
+                <button onClick={() => setViewBankGroupKey(null)} style={btnSec}>關閉</button>
               </div>
             </div>
           </div>
         )
       })()}
-
-      {/* 官網 LINE Pay：PayUni 交易處理費發票核對 */}
-      {isLinePayOfficial && (() => {
-        const inv3FeeSum = inv3Preview?.txFeeSum ?? (inv3Method === 'manual' ? manual3TxFeeSum : null)
-        const inv3AmountNum = parseFloat(inv3Amount) || 0
-        const inv3Diff = inv3AmountNum > 0 && inv3FeeSum != null ? Math.round((inv3AmountNum - inv3FeeSum) * 100) / 100 : null
-        const inv3IsMatch = inv3Diff != null && Math.abs(inv3Diff) < 0.01
-        const hasInv3Orders = inv3Preview?.orders?.length > 0 || (inv3Method === 'manual' && checked3Ids.size > 0)
-        return (
-          <Card>
-            <strong style={{ fontSize: 14 }}>PayUni交易處理費發票核對</strong>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12, alignItems: 'flex-end' }}>
-              <Field label="發票號碼">
-                <input value={inv3No} onChange={e => setInv3No(e.target.value)} placeholder="AB-12345678" style={inp} />
-              </Field>
-              <Field label="發票日期">
-                <input type="date" value={inv3Date} onChange={e => setInv3Date(e.target.value)} style={inp} />
-              </Field>
-              <Field label="發票金額">
-                <input type="number" value={inv3Amount} onChange={e => setInv3Amount(e.target.value)} placeholder="0" style={inp} />
-              </Field>
-            </div>
-
-            <div style={{ display: 'flex', margin: '12px 0', gap: 0 }}>
-              {[['auto', '方式 A — 期間篩選'], ['manual', '方式 B — 手動勾選']].map(([v, lbl], i) => (
-                <button key={v} onClick={() => switchMethod3(v)} style={{
-                  padding: '6px 14px', border: `1px solid ${C.line}`, cursor: 'pointer', fontSize: 13,
-                  background: inv3Method === v ? C.brand : '#fff', color: inv3Method === v ? '#fff' : C.sub,
-                  borderRadius: i === 0 ? '8px 0 0 8px' : '0 8px 8px 0',
-                }}>{lbl}</button>
-              ))}
-            </div>
-
-            {inv3Method === 'auto' && (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <Field label="期間起"><input type="date" value={inv3From} onChange={e => setInv3From(e.target.value)} style={inp} /></Field>
-                <Field label="期間訖"><input type="date" value={inv3To} onChange={e => setInv3To(e.target.value)} style={inp} /></Field>
-                <div style={{ paddingBottom: 2 }}><button onClick={runInv3PreviewAuto} style={btnPrimary}>查詢</button></div>
-              </div>
-            )}
-
-            {inv3Method === 'manual' && (
-              <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto', marginBottom: 8 }}>
-                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
-                  <thead>
-                    <tr>
-                      <th style={th}>
-                        <input type="checkbox"
-                          checked={manual3Orders.length > 0 && checked3Ids.size === manual3Orders.length}
-                          onChange={toggleAll3} />
-                      </th>
-                      {['平台訂單編號', '入帳日', '交易處理費'].map(c => <th key={c} style={th}>{c}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {manual3Orders.length === 0 && (
-                      <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: C.sub }}>所有訂單都已歸發票</td></tr>
-                    )}
-                    {manual3Orders.map((o, i) => (
-                      <tr key={i} style={{ background: checked3Ids.has(o.id) ? C.brandBg : '#fff' }}>
-                        <td style={td}><input type="checkbox" checked={checked3Ids.has(o.id)} onChange={() => toggleCheck3(o.id)} /></td>
-                        <td style={{ ...td, fontFamily: 'monospace' }}>{o.ref_no}</td>
-                        <td style={td}>{o.in_date || o.order_date || '—'}</td>
-                        <td style={{ ...td, textAlign: 'right' }}>{(o.tx_fee ?? 0).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {hasInv3Orders && (
-              <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 10,
-                background: inv3IsMatch ? C.brandBg : inv3Diff != null ? C.warnBg : '#f5f5f5',
-                display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-                {inv3FeeSum != null && <span style={{ fontSize: 13 }}>交易處理費加總：<strong>{inv3FeeSum.toLocaleString()}</strong></span>}
-                {inv3AmountNum > 0 && <span style={{ fontSize: 13 }}>發票金額：<strong>{inv3AmountNum.toLocaleString()}</strong></span>}
-                {inv3Diff != null && (
-                  <span style={{ fontSize: 13, color: inv3IsMatch ? C.brand : C.danger, fontWeight: 600 }}>
-                    差異：{inv3Diff.toLocaleString()}　{inv3IsMatch ? '✓ 相符' : '✗ 有差異'}
-                  </span>
-                )}
-                <button onClick={runApplyTxFeeInvoice} style={btnPrimary}>套用</button>
-              </div>
-            )}
-            {inv3Msg && (
-              <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13,
-                color: inv3Msg.includes('錯誤') ? C.danger : inv3Msg.includes('相符') ? C.brand : C.sub }}>
-                {inv3Msg}
-              </p>
-            )}
-          </Card>
-        )
-      })()}
-
-      {/* 蝦皮玉山銀行對帳 */}
-      {isShopee && (
-        <Card>
-          <strong style={{ fontSize: 14 }}>玉山銀行對帳</strong>
-          <p style={{ fontSize: 12, color: C.sub, margin: '2px 0 0' }}>
-            上傳玉山對帳單，篩出備註含「SHOPEE」的入帳，手動勾選對應訂單後確認入帳日
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
-            <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
-            <button onClick={() => bankFileRef.current.click()} style={btnGhost}>上傳玉山對帳單</button>
-            {bankFileName && <span style={{ fontSize: 12, color: C.sub }}>{bankFileName}</span>}
-          </div>
-
-          {/* 已確認入帳群組 */}
-          {(() => {
-            const confirmed = orders.filter(o => o.recon_status === '已入帳' && o.in_date)
-            if (!confirmed.length) return null
-            const groups = {}
-            confirmed.forEach(o => {
-              const k = (o.in_date || '').slice(0, 10)
-              if (!groups[k]) groups[k] = { date: k, orders: [], payable: 0 }
-              groups[k].orders.push(o)
-              groups[k].payable += o.payable || 0
-            })
-            const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
-            return (
-              <div style={{ marginTop: 14 }}>
-                <p style={{ fontSize: 12, color: C.sub, margin: '0 0 8px', fontWeight: 600 }}>已確認入帳</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {sorted.map(g => {
-                    const exp = !!confirmedGroupExp[g.date]
-                    return (
-                      <div key={g.date} style={{ border: '1.5px solid #a8d5c2', borderRadius: 10, padding: '10px 14px', background: '#f0faf5' }}>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 700, fontSize: 13 }}>入帳日：{g.date}</span>
-                          <span style={{ fontSize: 13 }}>應入帳合計：<strong style={{ color: C.brand }}>NT$ {(Math.round(g.payable * 100) / 100).toLocaleString()}</strong></span>
-                          <span style={{ fontSize: 12, color: C.sub }}>{g.orders.length} 筆</span>
-                          <button onClick={() => setConfirmedGroupExp(p => ({ ...p, [g.date]: !exp }))}
-                            style={{ ...btnGhost, fontSize: 11, padding: '2px 8px', marginLeft: 'auto' }}>
-                            {exp ? '收起 ▲' : '展開 ▼'}
-                          </button>
-                        </div>
-                        {exp && (
-                          <div style={{ marginTop: 8, borderTop: '1px solid #d0ece5', paddingTop: 8 }}>
-                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                              <thead><tr style={{ color: C.sub }}>
-                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
-                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                <th style={{ padding: '3px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
-                              </tr></thead>
-                              <tbody>
-                                {g.orders.sort((a, b) => (a.order_date || '').localeCompare(b.order_date || '')).map(o => (
-                                  <tr key={o.id} style={{ borderBottom: '1px solid #e8f5f0' }}>
-                                    <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
-                                    <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
-                                    <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* 銀行對帳單入帳列表 */}
-          {bankRows.length > 0 && (() => {
-            const displayRows = bankRows
-
-            async function batchConfirmShopee() {
-              const selected = [...bankEntryChecked]
-              if (!selected.length) return
-              setBankMsg(p => { const n = {...p}; selected.forEach(i => { n[i] = '寫入中…' }); return n })
-              let hasErr = false
-              for (const idx of selected) {
-                const br = displayRows[idx]
-                if (!br) continue
-                const ccSel = bankCCOrderSel[idx] ?? new Set()
-                const dateOrders = orders.filter(o => ccSel.has(String(o.id)))
-                for (const o of dateOrders) {
-                  const { error } = await supabase.from('shipping_orders')
-                    .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
-                  if (error) { hasErr = true; break }
-                }
-                if (!hasErr) setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
-                else break
-              }
-              if (!hasErr) { setBankEntryChecked(new Set()); await loadOrders() }
-            }
-
-            const allChecked = displayRows.length > 0 && bankEntryChecked.size === displayRows.length
-
-            return (
-              <div style={{ marginTop: 14 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                  <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={allChecked}
-                      onChange={() => setBankEntryChecked(allChecked ? new Set() : new Set(displayRows.map((_, i) => i)))} />
-                    全選
-                  </label>
-                  {bankEntryChecked.size > 0 && (
-                    <button onClick={batchConfirmShopee} style={{ ...btnPrimary, fontSize: 13 }}>
-                      批次確認入帳（{bankEntryChecked.size} 筆）
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {displayRows.map((br, idx) => {
-                    const ccSel = bankCCOrderSel[idx] ?? new Set()
-                    const pendingOrders = orders
-                      .filter(o => o.recon_status !== '已入帳')
-                      .sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
-                    const selectedOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
-                    const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
-                    const ccDiff = ccSel.size > 0 ? Math.round((br.deposit - ordersPayable) * 100) / 100 : null
-                    const ccMatch = ccDiff != null && Math.abs(ccDiff) <= 1
-                    const expanded = !!bankExpanded[idx]
-                    const isDone = !!bankMsg[idx]?.startsWith('✓')
-                    const cardBorderColor = ccSel.size > 0 ? (ccMatch ? '#a8d5c2' : C.danger) : '#e0e0e0'
-                    const cardBg = ccSel.size > 0 && ccMatch ? '#f0faf5' : '#fff'
-                    return (
-                      <div key={idx} style={{ border: `1.5px solid ${cardBorderColor}`, borderRadius: 10, padding: '12px 16px', background: cardBg }}>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                          {!isDone && (
-                            <input type="checkbox" checked={bankEntryChecked.has(idx)}
-                              onChange={() => setBankEntryChecked(p => { const n = new Set(p); n.has(idx) ? n.delete(idx) : n.add(idx); return n })} />
-                          )}
-                          <span style={{ fontWeight: 700, fontSize: 14, minWidth: 90 }}>{br.date}</span>
-                          <span style={{ fontSize: 12, color: C.sub }}>{br.summary}</span>
-                          <span style={{ fontSize: 13 }}>銀行入帳：<strong>NT$ {br.deposit.toLocaleString()}</strong></span>
-                          {ccSel.size > 0 && (
-                            <span style={{ fontSize: 13 }}>
-                              已選：<strong>NT$ {ordersPayable.toLocaleString()}</strong>
-                              {ccDiff != null && (
-                                <span style={{ marginLeft: 6, fontWeight: 700, color: ccMatch ? C.brand : C.danger }}>
-                                  差異：{ccDiff > 0 ? '+' : ''}{ccDiff}{ccMatch && ' ✓'}
-                                </span>
-                              )}
-                            </span>
-                          )}
-                          {!isDone && (
-                            <button onClick={() => setBankExpanded(p => ({ ...p, [idx]: !expanded }))}
-                              style={{ ...btnGhost, fontSize: 12, padding: '3px 10px', marginLeft: 'auto' }}>
-                              {expanded ? '收起 ▲' : `選取訂單 ▼ (${pendingOrders.length})`}
-                            </button>
-                          )}
-                          {!isDone && ccSel.size > 0 && (
-                            <button onClick={async () => {
-                              const dateOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
-                              for (const o of dateOrders) {
-                                await supabase.from('shipping_orders')
-                                  .update({ in_date: br.date, actual_in: br.deposit, bank_deposit: br.deposit, recon_status: '已入帳' }).eq('id', o.id)
-                              }
-                              setBankMsg(p => ({ ...p, [idx]: '✓ 已回填' }))
-                              await loadOrders()
-                            }} style={{ ...btnPrimary, fontSize: 12, padding: '3px 10px' }}>
-                              確認入帳（{ccSel.size} 筆）
-                            </button>
-                          )}
-                          {bankMsg[idx] && (
-                            <span style={{ fontSize: 13, color: bankMsg[idx].startsWith('✓') ? C.brand : C.danger, fontWeight: 600 }}>
-                              {bankMsg[idx]}
-                            </span>
-                          )}
-                        </div>
-                        {!isDone && expanded && (
-                          <div style={{ marginTop: 10, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
-                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                              <thead><tr style={{ color: C.sub }}>
-                                <th style={{ padding: '3px 6px' }}></th>
-                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>平台訂單編號</th>
-                                <th style={{ padding: '3px 6px', textAlign: 'left', fontWeight: 400 }}>訂單日期</th>
-                                <th style={{ padding: '3px 6px', textAlign: 'right', fontWeight: 400 }}>應入帳</th>
-                              </tr></thead>
-                              <tbody>
-                                {pendingOrders.map(o => (
-                                  <tr key={o.id} style={{ background: ccSel.has(String(o.id)) ? C.brandBg : 'transparent', borderBottom: `1px solid ${C.line}` }}>
-                                    <td style={{ padding: '3px 6px' }}>
-                                      <input type="checkbox" checked={ccSel.has(String(o.id))}
-                                        onChange={() => {
-                                          const s = new Set(ccSel)
-                                          s.has(String(o.id)) ? s.delete(String(o.id)) : s.add(String(o.id))
-                                          setBankCCOrderSel(p => ({ ...p, [idx]: s }))
-                                        }} />
-                                    </td>
-                                    <td style={{ padding: '3px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
-                                    <td style={{ padding: '3px 6px' }}>{o.order_date}</td>
-                                    <td style={{ padding: '3px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString() ?? '—'}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
-        </Card>
-      )}
-
-      {/* 教學 SOP */}
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <strong style={{ fontSize: 14 }}>教學 SOP</strong>
-          {!sopEditing
-            ? <button onClick={() => setSopEditing(true)} style={btnGhost}>編輯</button>
-            : <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={openSopLinkForm} style={btnGhost}>插入連結</button>
-                <button onClick={saveSop} disabled={sopSaving} style={btnPrimary}>{sopSaving ? '儲存中…' : '儲存'}</button>
-                <button onClick={cancelSop} style={btnGhost}>取消</button>
-              </div>
-          }
-        </div>
-
-        {sopEditing && sopLinkForm && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 12px', background: C.brandBg, borderRadius: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: C.sub, flexShrink: 0 }}>插入連結</span>
-            <input value={sopLinkText} onChange={e => setSopLinkText(e.target.value)} placeholder="顯示文字" style={{ ...inp, width: 130 }} />
-            <input value={sopLinkUrl} onChange={e => setSopLinkUrl(e.target.value)} placeholder="https://..."
-              style={{ ...inp, width: 220 }} onKeyDown={e => e.key === 'Enter' && insertSopLink()} />
-            <button onClick={insertSopLink} style={btnPrimary}>插入</button>
-            <button onClick={() => setSopLinkForm(false)} style={btnGhost}>取消</button>
-          </div>
-        )}
-
-        {sopEditing ? (
-          <div
-            ref={sopRef}
-            contentEditable
-            suppressContentEditableWarning
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.execCommand('insertLineBreak') } }}
-            style={{
-              minHeight: 100, padding: '10px 12px', borderRadius: 8,
-              border: `1.5px solid ${C.brand}`, background: '#fff',
-              fontSize: 13, lineHeight: 1.75, outline: 'none',
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              minHeight: 48, padding: '10px 12px', borderRadius: 8,
-              border: '1px solid #e8e8e8', background: '#fafafa',
-              fontSize: 13, lineHeight: 1.75,
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            }}
-            dangerouslySetInnerHTML={{
-              __html: sopHtml ||
-                '<span style="color:#bbb;font-style:italic">尚未設定 SOP，點擊右上角「編輯」開始填寫</span>'
-            }}
-          />
-        )}
-      </Card>
     </div>
   )
 }
 
-function statusBg(s) {
-  if (s === '已對帳') return C.brandBg
-  if (s === '已入帳') return '#e6f4f1'
-  if (s === '平台已結算') return '#edf2fb'
-  if (s === '已出貨') return '#f5f5f5'
-  return C.warnBg
-}
-function statusColor(s) {
-  if (s === '已對帳') return C.brand
-  if (s === '已入帳') return '#1d7a6f'
-  if (s === '平台已結算') return '#2c5282'
-  if (s === '已出貨') return C.sub
-  return C.warn
+// 對帳狀態 → tag 色調（已對帳=綠、已入帳=寶藍、其餘中性／描邊）
+function statusTone(s) {
+  if (s === '已對帳') return 'accent2'
+  if (s === '已入帳') return 'accent'
+  if (s === '已出貨') return 'outline'
+  return 'neutral'
 }
 
 function EditModal({ row, onClose, onSave }) {
@@ -3011,5 +3330,231 @@ const btnGhost = { padding: '8px 16px', borderRadius: 8, border: `1px solid ${C.
 const miniBtn = { padding: '4px 8px', borderRadius: 6, border: 'none', background: 'transparent', color: C.brand, fontSize: 13, cursor: 'pointer' }
 const th = { textAlign: 'left', padding: '8px 10px', borderBottom: `2px solid ${C.line}`, color: C.sub, fontWeight: 600, whiteSpace: 'nowrap', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }
 const td = { padding: '7px 10px', borderBottom: `1px solid ${C.line}`, whiteSpace: 'nowrap' }
-const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }
-const modal = { background: '#fff', borderRadius: 14, padding: 24, width: 480, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }
+const overlay = { position: 'fixed', inset: 0, background: 'rgba(22,35,63,.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }
+const modal = { background: T.surface, borderRadius: T.rPanel, padding: 26, width: 480, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: T.shadowLg }
+
+// ====== 金流對帳：品牌 token 樣式 ======
+const btnPri = { padding: '8px 16px', borderRadius: T.rPill, border: `1px solid ${T.a}`, background: T.a, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+const btnSec = { padding: '8px 16px', borderRadius: T.rPill, border: `1px solid ${T.divider}`, background: T.surface, color: T.n700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+const btnGhostT = { padding: '5px 12px', borderRadius: T.rPill, border: 'none', background: 'transparent', color: T.a700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+const inpT = { padding: '7px 12px', borderRadius: T.rPill, border: `1px solid ${T.divider}`, fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', background: T.surface, color: T.text, outline: 'none' }
+const thT = { textAlign: 'left', padding: '11px 14px', background: T.n200, color: T.n600, fontWeight: 600, fontSize: 11, letterSpacing: '.06em', whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 1 }
+const thAnchor = { ...thT, background: T.n300, color: T.n800 }
+const tdT = { padding: '11px 14px', borderBottom: `1px solid ${T.divider}`, whiteSpace: 'nowrap', fontSize: 13 }
+const subTh = { padding: '4px 6px', textAlign: 'left', fontWeight: 500, color: T.n600, fontSize: 11, whiteSpace: 'nowrap' }
+const panelLead = { fontSize: 14, color: T.n700, marginBottom: 12, lineHeight: 1.7 }
+const pickWrap = { overflowX: 'auto', maxHeight: 260, overflowY: 'auto', margin: '8px 0', border: `1px solid ${T.divider}`, borderRadius: T.rInner, background: T.surface }
+const popupInp = { fontSize: 13, padding: '5px 10px', borderRadius: T.rPill, border: `1px solid ${T.divider}`, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const popupArea = { width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: T.rInner, border: `1px solid ${T.divider}`, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const slotChipBtn = { borderRadius: T.rPill, border: 'none', background: 'rgba(22,35,63,.72)', color: '#fff', fontSize: 12, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.5 }
+const mRow = { borderBottom: `1px solid ${T.divider}` }
+const mLabel = { padding: '9px 0', color: T.n600, width: 116, verticalAlign: 'top' }
+const mVal = { padding: '9px 0' }
+
+// 手續費發票群組色帶：同一張發票的訂單共用一組（底色 + 左直條），兩組交替
+const INV_BG = [T.g100, T.a100]    // 沙綠 / 淡藍
+const INV_BAR = [T.g500, T.a500]
+
+const TAG_TONE = {
+  accent:  { bg: T.a100, fg: T.a700 },
+  accent2: { bg: T.g100, fg: T.g700 },
+  neutral: { bg: T.n200, fg: T.n700 },
+  danger:  { bg: T.dangerBg, fg: T.danger },
+  outline: { bg: 'transparent', fg: T.n700, border: T.divider },
+}
+function Tag({ tone = 'neutral', children, style }) {
+  const t = TAG_TONE[tone] || TAG_TONE.neutral
+  return (
+    <span style={{
+      display: 'inline-block', padding: '3px 10px', borderRadius: T.rPill, fontSize: 12, fontWeight: 600,
+      background: t.bg, color: t.fg, border: `1px solid ${t.border || 'transparent'}`, whiteSpace: 'nowrap', ...style,
+    }}>{children}</span>
+  )
+}
+
+// 上傳區塊：未上傳＝寶藍虛線；已上傳＝綠實底 + ✓
+function DropButton({ onClick, filled, label, hint, block }) {
+  return (
+    <button onClick={onClick} style={{
+      border: `1.5px dashed ${filled ? T.g500 : T.a}`,
+      background: filled ? T.g100 : T.a100,
+      borderRadius: T.rPanel, padding: 18, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
+      font: 'inherit', color: 'inherit', width: block ? '100%' : undefined,
+      minWidth: block ? undefined : 260, flex: block ? undefined : '0 1 auto',
+      transition: 'border-color .12s,background .12s',
+    }}>
+      <span style={{ width: 44, height: 44, flex: 'none', borderRadius: '50%',
+        background: filled ? T.g600 : T.a, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 18 }}>
+        {filled ? '✓' : '↑'}
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+        <div style={{ fontSize: 12, color: filled ? T.g700 : T.a700 }}>{hint}</div>
+      </div>
+    </button>
+  )
+}
+
+// 「資料來源」小膠囊：就地說明這一步的檔案去哪抓
+function SourceHint({ text, onSop }) {
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px',
+      borderRadius: T.rPill, background: T.a100, fontSize: 12, color: T.a700, lineHeight: 1.7, flexWrap: 'wrap' }}>
+      <span style={{ fontWeight: 700 }}>ⓘ</span>
+      <span>資料來源：{text}</span>
+      <button onClick={onSop} style={{ border: 'none', background: 'none', padding: 0, font: 'inherit',
+        color: T.a700, textDecoration: 'underline', cursor: 'pointer' }}>完整 SOP</button>
+    </div>
+  )
+}
+
+function PanelMsg({ text, bad }) {
+  if (!text) return null
+  const isBad = bad ? bad.test(text) : false
+  return <p style={{ marginTop: 10, marginBottom: 0, fontSize: 13, color: isBad ? T.danger : T.g700 }}>{text}</p>
+}
+
+// 方式 A（期間篩選）／方式 B（手動勾選）切換
+function SegBtns({ value, onChange }) {
+  return (
+    <div style={{ display: 'inline-flex', margin: '14px 0', borderRadius: T.rPill, overflow: 'hidden', border: `1px solid ${T.divider}` }}>
+      {[['auto', '方式 A — 期間篩選'], ['manual', '方式 B — 手動勾選']].map(([v, lbl]) => (
+        <button key={v} onClick={() => onChange(v)} style={{
+          padding: '7px 16px', border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+          background: value === v ? T.a : T.surface, color: value === v ? '#fff' : T.n700, whiteSpace: 'nowrap',
+        }}>{lbl}</button>
+      ))}
+    </div>
+  )
+}
+
+function SumBar({ tone, children }) {
+  const bg = tone === 'ok' ? T.g100 : tone === 'bad' ? T.dangerBg : T.n200
+  return (
+    <div style={{ padding: '14px 18px', borderRadius: T.rInner, marginTop: 12, background: bg,
+      display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>{children}</div>
+  )
+}
+
+// 已確認入帳群組（依 in_date 彙總）
+function ConfirmedGroups({ groups, exp, setExp }) {
+  return (
+    <div style={{ marginTop: 18 }}>
+      <p style={{ fontSize: 11, letterSpacing: '.06em', color: T.n600, margin: '0 0 8px', fontWeight: 600 }}>已確認入帳</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {groups.map(g => {
+          const open = !!exp[g.date]
+          return (
+            <div key={g.date} style={{ border: `1.5px solid ${T.g500}`, borderRadius: T.rPanel, padding: '14px 18px', background: T.g100 }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>入帳日 {g.date}</span>
+                <span style={{ fontSize: 14 }}>應入帳合計 <strong style={{ color: T.g700 }}>NT$ {(Math.round(g.payable * 100) / 100).toLocaleString()}</strong></span>
+                <Tag tone="accent2">{g.orders.length} 筆</Tag>
+                <button onClick={() => setExp(p => ({ ...p, [g.date]: !open }))}
+                  style={{ ...btnSec, fontSize: 12, padding: '4px 12px', marginLeft: 'auto' }}>
+                  {open ? '收起 ▲' : '展開 ▼'}
+                </button>
+              </div>
+              {open && (
+                <div style={{ marginTop: 10, borderTop: `1px solid ${T.g300}`, paddingTop: 10 }}>
+                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={subTh}>平台訂單編號</th>
+                        <th style={subTh}>訂單日期</th>
+                        <th style={{ ...subTh, textAlign: 'right' }}>應入帳</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.orders.slice().sort((a, b) => (a.order_date || '').localeCompare(b.order_date || '')).map(o => (
+                        <tr key={o.id} style={{ borderBottom: `1px solid ${T.g200}` }}>
+                          <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
+                          <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
+                          <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// 群組型發票卡片：一張發票涵蓋哪幾筆訂單、費用合計 vs 發票金額
+function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
+  const keys = Object.keys(groups)
+  if (!keys.length) {
+    return (
+      <div style={{ border: `1.5px dashed ${T.divider}`, background: T.bg, borderRadius: T.rPanel,
+        padding: '16px 18px', fontSize: 13, color: T.n600 }}>
+        尚未開立{kind === 'tx' ? '交易處理費' : '手續費'}發票 — 用下方欄位輸入發票號碼、勾選訂單即可群組成一張發票。
+      </div>
+    )
+  }
+  const field = kind === 'tx' ? 'tx_fee_invoice_no' : 'fee_invoice_no'
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
+      {keys.map((k, i) => {
+        const g = groups[k]
+        const sum = Math.round((g.feeSum ?? g.txFeeSum ?? 0) * 100) / 100
+        const amt = g.invAmount
+        const ok = amt != null ? Math.abs(sum - amt) < 0.01 : null
+        const ci = colorIdx[k] != null ? colorIdx[k] : i % 2
+        const refs = orders.filter(o => o[field] === k).map(o => String(o.ref_no || ''))
+        const border = ok === false ? T.danger : ok === true ? T.g500 : T.divider
+        const bg = ok === false ? T.dangerBg : ok === true ? T.g100 : T.bg
+        return (
+          <div key={k} onClick={() => onOpen(k)} style={{
+            border: `1.5px solid ${border}`, borderLeft: `6px solid ${ok === false ? T.danger : INV_BAR[ci]}`,
+            background: bg, borderRadius: T.rPanel, padding: '16px 18px', cursor: 'pointer',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 11, letterSpacing: '.06em', color: ok === false ? T.danger : T.n600 }}>
+                {kind === 'tx' ? '交易處理費發票' : '手續費發票'} · 共 {g.count} 筆
+              </div>
+              {ok != null && (
+                <Tag tone={ok ? 'accent2' : 'danger'} style={{ fontSize: 11 }}>
+                  {ok ? '✓ 相符' : `✗ 差異 ${Math.round((sum - amt) * 100) / 100}`}
+                </Tag>
+              )}
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginTop: 4, fontFamily: 'monospace' }}>{k}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 10 }}>
+              {refs.slice(0, 6).map(r => (
+                <Tag key={r} tone="neutral" style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 400 }}>
+                  …{r.slice(-4)}
+                </Tag>
+              ))}
+              {refs.length > 6 && <Tag tone="neutral" style={{ fontSize: 11, fontWeight: 400 }}>+{refs.length - 6}</Tag>}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 13 }}>
+              <span style={{ color: T.n700 }}>費用合計</span><strong>NT$ {sum.toLocaleString()}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 13 }}>
+              <span style={{ color: T.n700 }}>發票金額</span>
+              <strong style={{ color: ok === false ? T.danger : T.text }}>
+                {amt != null ? `NT$ ${amt.toLocaleString()}` : '未填'}
+              </strong>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function IconBook() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  )
+}

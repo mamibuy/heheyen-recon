@@ -67,7 +67,24 @@ export async function applyInvoice(supabase, { orderIds, invoiceNo, invoiceDate,
   return orderIds.length
 }
 
-export async function reconcile(supabase, gateway, parsedRows) {
+// 新建訂單時給的 pay_method：讓新訂單落回正確的子分類工作區（見 matchesGateway）
+const NEW_ORDER_PAYMETHOD = {
+  shopee: '蝦皮', linepay: 'LINE_PAY', lanxin: 'CREDIT_CARD',
+  coupang: '酷澎', payuni_cc: '線上刷卡', payuni_linepay: 'Line Pay',
+}
+
+// 去槓號的鑰匙補回槓號：官網 ref_no 一律 4-4-4（12 碼），每 4 碼補一個 '-'
+// 讓對帳單新建的訂單與出貨端／天心的 ref_no 格式一致，之後才對得起來
+function redash(key) {
+  const k = String(key)
+  return k.length === 12 ? k.replace(/(.{4})(?=.)/g, '$1-') : k
+}
+
+// createMissing：對帳單比對不到的訂單，直接以對帳單資料新建（若已存在則略過）
+export async function reconcile(supabase, gateway, parsedRows, opts = {}) {
+  const { createMissing = false } = opts
+  const platform = GATEWAY_PLATFORM[gateway] || null
+
   const { data: orders, error } = await supabase
     .from('shipping_orders')
     .select('id,ref_no,total,recon_status')
@@ -82,6 +99,8 @@ export async function reconcile(supabase, gateway, parsedRows) {
   }
 
   const matched = [], unmatched = [], updated = []
+  const newOrders = []          // 待新建的訂單
+  const seenNew = new Set()      // 同一份檔案內去重
   let feeTotal = 0, payableTotal = 0
 
   for (const row of parsedRows) {
@@ -90,7 +109,33 @@ export async function reconcile(supabase, gateway, parsedRows) {
       : byRefNo[row.key]
 
     if (!order) {
-      unmatched.push(row.key)
+      if (createMissing) {
+        const ref_no = row.key_type === 'ref_no_nodash' ? redash(row.key) : String(row.key)
+        if (!seenNew.has(ref_no)) {
+          seenNew.add(ref_no)
+          const fee = row.fee != null ? row.fee : 0
+          const payable = row.payable != null ? row.payable : 0
+          // 應收：蝦皮進帳報表自帶正確 total；其餘無 total，用 應入帳 + 手續費 回推
+          const total = row.total != null ? row.total : Math.round((payable + fee) * 100) / 100
+          const rec = {
+            platform, ref_no, pay_method: NEW_ORDER_PAYMETHOD[gateway] || null,
+            total, fee_total: fee, payable, note: '對帳單匯入',
+          }
+          if (row.actual_in != null) {
+            rec.actual_in = row.actual_in
+            rec.in_date = row.in_date || null
+            rec.recon_status = '已入帳'
+          } else {
+            rec.recon_status = '平台已結算'
+          }
+          if (row.tx_code != null) rec.tx_code = row.tx_code
+          if (row.tx_fee != null) rec.tx_fee = row.tx_fee
+          if (row.order_invoice_amount != null) rec.order_invoice_amount = row.order_invoice_amount
+          newOrders.push(rec)
+        }
+      } else {
+        unmatched.push(row.key)
+      }
       continue
     }
     matched.push(row.key)
@@ -126,10 +171,24 @@ export async function reconcile(supabase, gateway, parsedRows) {
     }
   }
 
+  // 新建：以 (platform, ref_no) 唯一鍵做 upsert，已存在者略過（ignoreDuplicates）
+  // 一次寫入、回傳實際新增的列，精準得知「新增幾筆」
+  let inserted = []
+  if (createMissing && newOrders.length) {
+    const { data: ins, error: insErr } = await supabase
+      .from('shipping_orders')
+      .upsert(newOrders, { onConflict: 'platform,ref_no', ignoreDuplicates: true })
+      .select('ref_no')
+    if (insErr) throw new Error('新建訂單失敗：' + insErr.message)
+    inserted = (ins || []).map(o => o.ref_no)
+  }
+
   return {
     matched: matched.length,
     unmatched,
     updated: updated.length,
+    inserted: inserted.length,
+    insertedKeys: inserted,
     feeTotal: Math.round(feeTotal * 100) / 100,
     payableTotal: Math.round(payableTotal * 100) / 100,
   }
