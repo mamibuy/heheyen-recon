@@ -51,6 +51,41 @@ const GATEWAY_LIST = [
   { key: 'lanxin',         label: 'LINE商城 › 信用卡',   dot: T.n400 },
 ]
 
+// 天心 SA 銷貨明細表：檔案最上面有公司名／日期區間等標題列，真正的欄位表頭不在第一列。
+// 動態尋找含「客戶訂單」「單號」的表頭列，再逐列組成物件；找不到（表頭本來就在第一列的檔）
+// 則退回一般物件模式，行為與原本一致。
+function parseTianxinSheet(ws) {
+  const arr = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+  // 表頭欄位有時帶前後空白，先 trim 再找，避免誤判成「沒有表頭」而退回錯誤的第一列
+  const trimmed = arr.map(r => Array.isArray(r) ? r.map(c => String(c).trim()) : [])
+  const hi = trimmed.findIndex(r => r.includes('客戶訂單') && r.includes('單號'))
+  if (hi < 0) return XLSX.utils.sheet_to_json(ws, { defval: '' })
+  const header = trimmed[hi]
+  const out = []
+  for (let i = hi + 1; i < arr.length; i++) {
+    const r = arr[i]
+    if (!r.some(c => String(c).trim() !== '')) continue   // 跳過空白列
+    const obj = {}
+    header.forEach((h, ci) => { if (h) obj[h] = r[ci] })
+    out.push(obj)
+  }
+  return out
+}
+
+// 讀天心銷貨明細（.xls/.xlsx），套用上面的動態表頭解析
+function readTianxinFile(e, setRows, setFileName) {
+  const f = e.target.files?.[0]
+  if (!f) return
+  setFileName(f.name)
+  const reader = new FileReader()
+  reader.onload = ev => {
+    const wb = XLSX.read(ev.target.result, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    setRows(parseTianxinSheet(ws))
+  }
+  reader.readAsArrayBuffer(f)
+}
+
 function PasswordGate({ children }) {
   const [authed, setAuthed] = useState(() => localStorage.getItem('hhy_auth') === '1')
   const [pw, setPw] = useState('')
@@ -417,16 +452,7 @@ function ReconPage() {
   const txFileRef = useRef(null)
 
   function readTxFile(e) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setTxFileName(f.name)
-    const reader = new FileReader()
-    reader.onload = ev => {
-      const wb = XLSX.read(ev.target.result, { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      setTxRows(XLSX.utils.sheet_to_json(ws, { defval: '' }))
-    }
-    reader.readAsArrayBuffer(f)
+    readTianxinFile(e, setTxRows, setTxFileName)
   }
 
   async function handleTianxin() {
@@ -1578,7 +1604,7 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
       <div style={panelLead}>比對「客戶訂單」與蝦皮平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼。</div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <input ref={shopeeTxFileRef} type="file" accept=".xlsx,.xls"
-          onChange={e => readFile(e, setShopeeTxRows, setShopeeTxFileName)} style={{ display: 'none' }} />
+          onChange={e => readTianxinFile(e, setShopeeTxRows, setShopeeTxFileName)} style={{ display: 'none' }} />
         <DropButton onClick={() => shopeeTxFileRef.current.click()}
           filled={!!shopeeTxRows} label={shopeeTxFileName || '選擇天心銷貨單'}
           hint={shopeeTxRows ? `✓ ${shopeeTxRows.length} 列` : '尚未選擇檔案'} />
