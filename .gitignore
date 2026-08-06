@@ -2,3 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.local
+
+# 一次性修資料腳本：內含真實訂單／發票號碼，repo 是 public 故不進版控
+scripts/
+# 本機開發用的 dev server 設定
+.claude/

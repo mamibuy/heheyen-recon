@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 import { PARSERS, detectPlatform, excelDate, parseOfficialBulk } from './parsers.js'
 import { buildBlocks } from './transform.js'
-import { RECON_PARSERS, parseOfficialLinePayReconDual } from './recon_parsers.js'
+import { RECON_PARSERS, parseOfficialLinePayReconDual, checkReconColumns, checkDualReconColumns } from './recon_parsers.js'
 import { reconcile, previewInvoice, applyInvoice, loadGatewayOrders } from './reconcile.js'
 
 // ====== Supabase（沿用 Mamibuy 專案）======
@@ -580,6 +580,7 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   const [reconMsg, setReconMsg] = useState('')
   const [reconResult, setReconResult] = useState(null)
   const [createMissing, setCreateMissing] = useState(true)   // 對帳單比對不到的訂單自動建檔
+  const [skipColCheck, setSkipColCheck] = useState(false)    // 略過上傳檔案的欄位格式檢查
   const fileRef1 = useRef(null)
   const fileRef2 = useRef(null)
 
@@ -1151,9 +1152,20 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
       let parsed
       if (isTwoFile) {
         if (!rows1 || !rows2) { setReconMsg('請分別上傳 D-1 和 D-2 兩份對帳單'); return }
+        // 欄位檢查：擋掉上傳錯報表（否則會算出一堆 0 並寫進 DB）
+        const bad = skipColCheck ? null : checkDualReconColumns(rows1, rows2)
+        if (bad) {
+          setReconMsg(`錯誤：檔案格式不符 — ${bad.join('、')}。請確認上傳的是正確的對帳單；確定要繼續請勾選下方「略過格式檢查」。`)
+          return
+        }
         parsed = parseOfficialLinePayReconDual(rows1, rows2)
       } else {
         if (!rows1) { setReconMsg('請先上傳對帳單'); return }
+        const missing = skipColCheck ? null : checkReconColumns(gateway, rows1)
+        if (missing) {
+          setReconMsg(`錯誤：這份檔案不像「${gwInfo.label}」的對帳單，缺少必要欄位 ${missing.join('、')}。請確認上傳的報表是否正確；確定要繼續請勾選下方「略過格式檢查」。`)
+          return
+        }
         parsed = RECON_PARSERS[gateway](rows1)
       }
       const result = await reconcile(supabase, gateway, parsed, { createMissing })
@@ -1665,6 +1677,10 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, color: T.n700, cursor: 'pointer' }}>
         <input type="checkbox" checked={createMissing} onChange={e => setCreateMissing(e.target.checked)} />
         未匯入的訂單自動建檔（比對不到時，直接以對帳單資料新增；已存在則略過）
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13, color: T.n600, cursor: 'pointer' }}>
+        <input type="checkbox" checked={skipColCheck} onChange={e => setSkipColCheck(e.target.checked)} />
+        略過格式檢查（僅在確定報表正確、只是欄位名稱不同時勾選）
       </label>
       <PanelMsg text={reconMsg} bad={/錯誤|請/} />
       {createMissing && reconResult?.insertedKeys?.length > 0 && (

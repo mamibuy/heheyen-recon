@@ -179,6 +179,61 @@ function parseOfficialLinePayRecon(rows) {
   }).filter(r => r.key)
 }
 
+// ============================================================
+// 上傳檔案格式檢查
+// 每條金流列出 parser 真正會讀的關鍵欄位；每組至少要命中一個名稱。
+// 目的：擋掉上傳錯報表的情況 —— parser 找不到欄位時 num()/pick() 一路回 0，
+// 再套上寫死的固定費用（如酷澎 4 元），會產出「應收 0 / 應入帳 -4」這種
+// 看似成功、實則垃圾的結果，還會被自動建檔寫進 DB。
+// （實例：酷澎「營業稅明細 VAT History Report」被當成「出帳明細」上傳）
+// ============================================================
+const REQUIRED_COLS = {
+  shopee: [
+    { label: '訂單編號', names: ['訂單編號'] },
+    { label: '手續費或入帳金額', names: ['成交手續費', '金流與系統處理費', '錢包入帳金額', '銀行實際收款金額'] },
+  ],
+  linepay: [
+    { label: '訂單號碼', names: ['訂單號碼', '訂單編號'] },
+    { label: '手續費合計', names: ['手續費合計（含營業稅）', '手續費合計'] },
+  ],
+  lanxin: [
+    { label: '商店訂單編號', names: ['商店訂單編號'] },
+    { label: '主支付手續費', names: ['主支付手續費'] },
+  ],
+  coupang: [
+    { label: '訂單編號', names: ['訂單編號'] },
+    { label: '手續費總額', names: ['手續費總額', '手續費'] },
+    { label: '訂單金額', names: ['買家總支付', '銷售價格', '訂單金額'] },
+  ],
+  payuni_cc: [
+    { label: '商店訂單編號', names: ['商店訂單編號'] },
+    { label: '手續費', names: ['手續費'] },
+  ],
+  payuni_linepay: [
+    { label: '商店訂單編號', names: ['商店訂單編號'] },
+    { label: '交易處理費或對應碼', names: ['交易處理費', '支付方式對應碼'] },
+  ],
+}
+
+// 回傳 null 代表通過；否則回傳缺少欄位的描述陣列
+export function checkReconColumns(gateway, rows) {
+  const spec = REQUIRED_COLS[gateway]
+  if (!spec || !rows || !rows.length) return null
+  const headers = new Set(Object.keys(rows[0]).map(h => String(h).trim()))
+  const missing = spec.filter(g => !g.names.some(n => headers.has(n)))
+  return missing.length ? missing.map(g => `${g.label}（${g.names.join('／')}）`) : null
+}
+
+// 官網 LINE Pay 雙檔：只檢查各自的比對鑰匙，欄位名變異較多故不做嚴格檢查
+export function checkDualReconColumns(d1rows, d2rows) {
+  const bad = []
+  const h1 = new Set(Object.keys(d1rows?.[0] || {}).map(h => String(h).trim()))
+  const h2 = new Set(Object.keys(d2rows?.[0] || {}).map(h => String(h).trim()))
+  if (!['交易號碼', '訂單號碼'].some(n => h1.has(n))) bad.push('D-1 缺少「交易號碼」')
+  if (!h2.has('商店訂單編號')) bad.push('D-2 缺少「商店訂單編號」')
+  return bad.length ? bad : null
+}
+
 export const RECON_PARSERS = {
   shopee: parseShopeeRecon,
   linepay: parseLinePayRecon,
