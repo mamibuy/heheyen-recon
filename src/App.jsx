@@ -450,6 +450,7 @@ function ReconPage() {
   const [txFileName, setTxFileName] = useState('')
   const [txMsg, setTxMsg] = useState('')
   const [txResult, setTxResult] = useState(null)
+  const [txVersion, setTxVersion] = useState(0)   // 回填完遞增，通知各頁籤重新載入訂單
   const txFileRef = useRef(null)
 
   function readTxFile(e) {
@@ -493,13 +494,21 @@ function ReconPage() {
     setTxResult({ total: pairs.length, updated, unmatched })
     const invCount = Object.keys(invMap).length
     setTxMsg(`${pairs.length} 筆訂單，回填 ${updated} 筆銷貨單號${invCount ? `・${invCount} 筆訂單發票號碼` : ''}，未對應 ${unmatched.length} 筆`)
+    if (updated) setTxVersion(v => v + 1)   // 讓目前頁籤的訂單表反映剛回填的結果
   }
 
-  // 天心銷貨單回填 — 交給 GatewayWorkspace 放進「銷貨單號」步驟面板
-  const tianxinSlot = (
-    <div>
-      <div style={panelLead}>
-        比對天心「客戶訂單」與平台訂單編號，將 SA 單號寫入銷貨單號欄位（此步驟跨平台共用，一次上傳即可）。
+  // 天心銷貨單回填 —— 跨通路共用，位置在通路頁籤「之上」：
+  // handleTianxin 撈訂單時不帶 platform 條件，一次上傳就比對全部平台的訂單編號，
+  // 把 SA 單號與訂單發票號碼寫進對應訂單，不需要每個頁籤各傳一次。
+  const tianxinPanel = (
+    <div style={{ background: T.surface, borderRadius: T.rCard, boxShadow: T.shadowSm,
+      padding: '18px 22px', marginBottom: 18, borderLeft: `3px solid ${T.a}` }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: T.navy }}>天心銷貨單</span>
+        <span style={{ fontSize: 12, color: T.a, fontWeight: 600 }}>跨通路共用 · 一次上傳回填所有頁籤</span>
+      </div>
+      <div style={{ fontSize: 12, color: T.n600, lineHeight: 1.7, marginBottom: 10 }}>
+        比對天心「客戶訂單」與各平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼。不分通路，全部平台一起回填。
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <input ref={txFileRef} type="file" accept=".xlsx,.xls" onChange={readTxFile} style={{ display: 'none' }} />
@@ -520,6 +529,9 @@ function ReconPage() {
 
   return (
     <div>
+      {/* ── 天心銷貨單：跨通路共用，刻意放在通路切換列之上 ── */}
+      {activeGateway !== '__guide__' && tianxinPanel}
+
       {/* ── 通路切換列 ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
         <span style={{ fontSize: 12, letterSpacing: '.08em', color: T.n600, marginRight: 4 }}>金流通路</span>
@@ -556,14 +568,14 @@ function ReconPage() {
         <GatewayWorkspace
           gateway={activeGateway}
           key={activeGateway}
-          tianxinSlot={activeGateway === 'shopee' ? null : tianxinSlot}
+          txVersion={txVersion}
         />
       )}
     </div>
   )
 }
 
-function GatewayWorkspace({ gateway, tianxinSlot }) {
+function GatewayWorkspace({ gateway, txVersion }) {
   const gwInfo = GATEWAY_LIST.find(g => g.key === gateway) || {}
   const isTwoFile = !!gwInfo.twoFile
   const isLinePayOfficial = gateway === 'payuni_linepay'
@@ -674,10 +686,6 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   const [shopeeOrdMsg, setShopeeOrdMsg] = useState('')
   const shopeeOrdFileRef = useRef(null)
 
-  const [shopeeTxRows, setShopeeTxRows] = useState(null)
-  const [shopeeTxFileName, setShopeeTxFileName] = useState('')
-  const [shopeeTxMsg, setShopeeTxMsg] = useState('')
-  const shopeeTxFileRef = useRef(null)
 
   const [ordInvEntryNo, setOrdInvEntryNo] = useState('')
   const [ordInvEntryDate, setOrdInvEntryDate] = useState('')
@@ -759,6 +767,9 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
     const data = await loadGatewayOrders(supabase, gateway)
     setOrders(data)
   }
+
+  // 上方全域區的天心回填會動到本頁籤的訂單，回填完重新載入才看得到 SA 單號／發票號碼
+  useEffect(() => { if (txVersion) loadOrders() }, [txVersion])
 
   function readFile(e, setRows, setFileName) {
     const f = e.target.files?.[0]
@@ -876,38 +887,6 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
     const { error } = await supabase.from('shipping_orders').insert(toInsert)
     if (error) { setShopeeOrdMsg('錯誤：' + error.message); return }
     setShopeeOrdMsg(`新增 ${toInsert.length} 筆${skipped ? `，略過 ${skipped} 筆（已存在）` : ''}`)
-    loadOrders()
-  }
-
-  async function handleShopeeTxImport() {
-    if (!shopeeTxRows) { setShopeeTxMsg('請先上傳檔案'); return }
-    setShopeeTxMsg('比對中…')
-    const saMap = {}
-    const invMap = {}
-    for (const r of shopeeTxRows) {
-      const ref = String(r['客戶訂單'] || '').trim()
-      const sa = String(r['單號'] || '').trim()
-      const inv = String(r['發票號碼'] || '').trim()
-      if (ref && sa.startsWith('SA') && !saMap[ref]) saMap[ref] = sa
-      if (ref && inv && !invMap[ref]) invMap[ref] = inv
-    }
-    const byRef = {}
-    for (const o of orders) byRef[o.ref_no] = o.id
-    let updated = 0
-    const unmatched = []
-    const allRefs = new Set([...Object.keys(saMap), ...Object.keys(invMap)])
-    for (const ref of allRefs) {
-      const id = byRef[ref]
-      if (!id) continue
-      const upd = {}
-      if (saMap[ref]) upd.sa_no = saMap[ref]
-      if (invMap[ref]) upd.order_invoice_no = invMap[ref]
-      const { error } = await supabase.from('shipping_orders').update(upd).eq('id', id)
-      if (!error) updated++
-      else unmatched.push(ref)
-    }
-    const matched = [...allRefs].filter(r => byRef[r]).length
-    setShopeeTxMsg(`Excel ${allRefs.size} 筆，比對 ${matched} 筆蝦皮訂單，回填 ${updated} 筆${unmatched.length ? `，${unmatched.length} 筆失敗` : ''}`)
     loadOrders()
   }
 
@@ -1630,20 +1609,35 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   )
 
   // ── 面板：銷貨單號（天心）──
-  stepPanel.sa = isShopee ? (
-    <div>
-      <div style={panelLead}>比對「客戶訂單」與蝦皮平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼。</div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input ref={shopeeTxFileRef} type="file" accept=".xlsx,.xls"
-          onChange={e => readTianxinFile(e, setShopeeTxRows, setShopeeTxFileName)} style={{ display: 'none' }} />
-        <DropButton onClick={() => shopeeTxFileRef.current.click()}
-          filled={!!shopeeTxRows} label={shopeeTxFileName || '選擇天心銷貨單'}
-          hint={shopeeTxRows ? `✓ ${shopeeTxRows.length} 列` : '尚未選擇檔案'} />
-        <button onClick={handleShopeeTxImport} style={btnPri}>比對回填</button>
+  // 上傳欄位已移到頁籤上方的全域區（跨通路一次回填），這裡只留進度指示
+  stepPanel.sa = (() => {
+    const missing = orders.filter(o => !o.sa_no)
+    return (
+      <div>
+        <div style={panelLead}>
+          天心銷貨單是<strong>跨通路共用</strong>的，上傳欄位在本頁最上方的「天心銷貨單」區塊，一次上傳就會回填所有通路的銷貨單號與訂單發票號碼。
+        </div>
+        <div style={{ marginTop: 12, padding: '14px 18px', borderRadius: T.rInner,
+          background: missing.length ? C.warnBg : T.g100 }}>
+          {nOrders === 0 ? (
+            <span style={{ fontSize: 13, color: T.n600 }}>本通路尚無訂單。</span>
+          ) : missing.length === 0 ? (
+            <span style={{ fontSize: 13, color: T.g700 }}>✓ 本通路 {nOrders} 筆訂單的銷貨單號都已回填。</span>
+          ) : (
+            <>
+              <span style={{ fontSize: 13, color: C.warn }}>
+                本通路尚有 <strong>{missing.length}</strong> 筆訂單沒有銷貨單號（共 {nOrders} 筆）。
+              </span>
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: C.warn }}>
+                待回填：{missing.slice(0, 8).map(o => o.ref_no).join('、')}
+                {missing.length > 8 && `…等 ${missing.length} 筆`}
+              </p>
+            </>
+          )}
+        </div>
       </div>
-      <PanelMsg text={shopeeTxMsg} bad={/錯誤|失敗/} />
-    </div>
-  ) : (tianxinSlot || null)
+    )
+  })()
 
   // ── 面板：上傳撥款明細 ──
   stepPanel.recon = (
