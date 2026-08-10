@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 import { PARSERS, detectPlatform, excelDate, parseOfficialBulk } from './parsers.js'
 import { buildBlocks } from './transform.js'
-import { RECON_PARSERS, parseOfficialLinePayReconDual, checkReconColumns, checkDualReconColumns } from './recon_parsers.js'
+import { RECON_PARSERS, parseOfficialLinePayReconDual, parseMegabankRecon, checkReconColumns, checkDualReconColumns, checkMegabankColumns, megabankRateWarnings } from './recon_parsers.js'
 import { reconcile, previewInvoice, applyInvoice, loadGatewayOrders } from './reconcile.js'
 
 // ====== Supabase（沿用 Mamibuy 專案）======
@@ -40,7 +40,7 @@ const C = {
   warn: '#b4541a', warnBg: '#fbeee2', danger: T.danger,
 }
 
-const PLATFORMS = ['蝦皮', 'LINE商城', '酷澎', '官網']
+const PLATFORMS = ['蝦皮', 'LINE商城', '酷澎', '官網', '兆豐']
 
 const GATEWAY_LIST = [
   { key: 'coupang',        label: '酷澎',               dot: T.n500 },
@@ -49,6 +49,7 @@ const GATEWAY_LIST = [
   { key: 'payuni_linepay', label: '官網 › LINE Pay',    dot: T.g600, twoFile: true },
   { key: 'linepay',        label: 'LINE商城 › LINE Pay', dot: T.a400 },
   { key: 'lanxin',         label: 'LINE商城 › 信用卡',   dot: T.n400 },
+  { key: 'megabank',       label: '兆豐福利網',          dot: T.gold, twoFile: true },
 ]
 
 // 天心 SA 銷貨明細表：檔案最上面有公司名／日期區間等標題列，真正的欄位表頭不在第一列。
@@ -570,7 +571,11 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   const isLanxin = gateway === 'lanxin'
   const isPayuniCC = gateway === 'payuni_cc'
   const isShopee = gateway === 'shopee'
-  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin || isLinePayOfficial || isShopee
+  const isMegabank = gateway === 'megabank'
+  const isCoupang = gateway === 'coupang'
+  // 玉山對帳一律採「手動勾選訂單」比對，七條金流都適用
+  // （早期依撥款日自動篩選的路徑已無金流使用，相關分支保留但不會走到）
+  const isManualSelection = isPayuniCC || isLineMallLinePay || isLanxin || isLinePayOfficial || isShopee || isCoupang || isMegabank
   const STATUSES = ['待出貨', '已出貨', '平台已結算', '已入帳', '已對帳']
 
   const [rows1, setRows1] = useState(null)
@@ -581,6 +586,7 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   const [reconResult, setReconResult] = useState(null)
   const [createMissing, setCreateMissing] = useState(true)   // 對帳單比對不到的訂單自動建檔
   const [skipColCheck, setSkipColCheck] = useState(false)    // 略過上傳檔案的欄位格式檢查
+  const [reconWarn, setReconWarn] = useState(null)           // 兆豐 6% 費率檢核結果
   const fileRef1 = useRef(null)
   const fileRef2 = useRef(null)
 
@@ -1151,14 +1157,21 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
     try {
       let parsed
       if (isTwoFile) {
-        if (!rows1 || !rows2) { setReconMsg('請分別上傳 D-1 和 D-2 兩份對帳單'); return }
+        if (!rows1 || !rows2) {
+          setReconMsg(isMegabank ? '請分別上傳訂單明細報表與手續費報表' : '請分別上傳 D-1 和 D-2 兩份對帳單')
+          return
+        }
         // 欄位檢查：擋掉上傳錯報表（否則會算出一堆 0 並寫進 DB）
-        const bad = skipColCheck ? null : checkDualReconColumns(rows1, rows2)
+        const bad = skipColCheck ? null
+          : isMegabank ? checkMegabankColumns(rows1, rows2)
+          : checkDualReconColumns(rows1, rows2)
         if (bad) {
           setReconMsg(`錯誤：檔案格式不符 — ${bad.join('、')}。請確認上傳的是正確的對帳單；確定要繼續請勾選下方「略過格式檢查」。`)
           return
         }
-        parsed = parseOfficialLinePayReconDual(rows1, rows2)
+        parsed = isMegabank
+          ? parseMegabankRecon(rows1, rows2)
+          : parseOfficialLinePayReconDual(rows1, rows2)
       } else {
         if (!rows1) { setReconMsg('請先上傳對帳單'); return }
         const missing = skipColCheck ? null : checkReconColumns(gateway, rows1)
@@ -1168,6 +1181,8 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
         }
         parsed = RECON_PARSERS[gateway](rows1)
       }
+      // 兆豐手續費固定為訂單金額的 6%，不符就示警（多半是手續費報表缺列或期間沒對齊）
+      setReconWarn(isMegabank ? megabankRateWarnings(parsed) : null)
       const result = await reconcile(supabase, gateway, parsed, { createMissing })
       setReconResult(result)
       const parts = [`比對 ${parsed.length} 筆`, `回填 ${result.updated} 筆`]
@@ -1524,7 +1539,8 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   const segW = n => (heroTotal ? (n / heroTotal * 100) : 0)
 
   // ── 對帳步驟：步驟數依金流而定，完成狀態由訂單資料推導 ──
-  const hasBankStep = isLineMallLinePay || isLanxin || isLinePayOfficial || isPayuniCC || isShopee
+  // 玉山銀行對帳是每條金流的收尾步驟（含酷澎、兆豐）
+  const hasBankStep = true
   const nOrders = orders.length
   const lack = fn => orders.filter(fn).length
   const mkStep = (key, title, missingCount, unit) => ({
@@ -1533,10 +1549,13 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
     sub: nOrders === 0 ? '尚無訂單' : missingCount === 0 ? '已完成' : `${missingCount} 筆待${unit}`,
   })
 
-  // 步驟順序＝目前線上版的區塊順序（非設計稿的示意順序），勿依設計稿重排：
-  // 蝦皮：訂單匯入 → 銷貨單號 → 撥款明細 → 訂單發票 → 發票核對 → 玉山銀行對帳
-  // 官網LINE Pay：銷貨單號 → 撥款明細 → 交易處理費 → 玉山銀行對帳 → 發票核對 → 交易處理費發票
-  //   （交易處理費緊接撥款明細，見 commit 7a19e65；蝦皮的銀行對帳在最後）
+  // 步驟順序＝使用者實際作業流程（2026-08-06 依此重排，取代原本「比照線上版區塊順序」的排法）：
+  //   ① 上傳該渠道的對帳單／撥款明細／手續費明細
+  //   ② 上傳天心，勾稽訂單編號後回填銷貨單號與訂單發票號碼
+  //   ③ 手續費發票核對
+  //   ④ 上傳玉山對帳單，確認實際入帳日（收尾）
+  // 渠道專屬步驟依性質靠邊：費用類（交易處理費）緊接撥款明細，發票類靠發票核對。
+  // 要再調整順序前請先跟使用者確認，勿依設計稿或舊版線上順序自行重排。
   const bankStep = () => mkStep('bank', '玉山銀行對帳',
     lack(o => o.recon_status !== '已入帳' && o.recon_status !== '已對帳'), '入帳')
 
@@ -1545,14 +1564,14 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
     key: 'shopeeOrd', title: '訂單匯入',
     done: nOrders > 0, sub: nOrders > 0 ? `${nOrders} 筆已匯入` : '待匯入',
   })
-  stepDefs.push(mkStep('sa', '銷貨單號', lack(o => !o.sa_no), '回填'))
   stepDefs.push(mkStep('recon', '上傳撥款明細', lack(o => o.fee_total == null), '回填'))
   if (isLinePayOfficial) stepDefs.push(mkStep('txfee', '交易處理費', lack(o => o.tx_fee == null), '補'))
-  if (hasBankStep && !isShopee) stepDefs.push(bankStep())
+  stepDefs.push(mkStep('sa', '銷貨單號', lack(o => !o.sa_no), '回填'))
   if (isShopee) stepDefs.push(mkStep('ordInv', '訂單發票', lack(o => !o.order_invoice_no), '開立'))
-  stepDefs.push(mkStep('feeInv', '發票核對', lack(o => !o.fee_invoice_no), '歸戶'))
+  // 官網LINE Pay 有兩種發票（手續費／交易處理費），這步改叫「手續費發票」以免混淆；其餘金流沿用「發票核對」
+  stepDefs.push(mkStep('feeInv', isLinePayOfficial ? '手續費發票' : '發票核對', lack(o => !o.fee_invoice_no), '歸戶'))
   if (isLinePayOfficial) stepDefs.push(mkStep('txFeeInv', '交易處理費發票', lack(o => !o.tx_fee_invoice_no), '歸戶'))
-  if (isShopee) stepDefs.push(bankStep())
+  stepDefs.push(bankStep())
 
   const firstTodoKey = (stepDefs.find(s => !s.done) || stepDefs[0] || {}).key
   const curStep = stepDefs.some(s => s.key === activeStepKey) ? activeStepKey : firstTodoKey
@@ -1632,6 +1651,7 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
       <div style={panelLead}>
         {isShopee ? '上傳蝦皮「我的進帳」，系統比對訂單編號並回填手續費、應入帳與代收付發票金額。'
           : isPayuniCC ? '上傳 PayUni 入帳表，以去槓號的商店訂單編號比對，回填手續費與入帳金額。'
+          : isMegabank ? '上傳兆豐「訂單明細報表」與「手續費報表」，系統以訂單編號勾稽兩表。應收取「商品金額＋運費」（非付款總金額，全額福利金折抵的訂單付款總金額為 0），應入帳＝應收－手續費。'
           : isTwoFile ? '上傳兩份撥款報表，系統以支付對應碼勾稽兩表，回填手續費與應入帳金額。'
           : '上傳撥款明細，系統自動比對平台訂單、回填手續費與應入帳金額。'}
       </div>
@@ -1641,10 +1661,10 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
           <>
             <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
             <DropButton onClick={() => fileRef1.current.click()} filled={!!rows1}
-              label={fileName1 || 'Line Pay撥款明細'} hint={rows1 ? `✓ ${rows1.length} 列` : '尚未選擇檔案'} block />
+              label={fileName1 || (isMegabank ? '訂單明細報表' : 'Line Pay撥款明細')} hint={rows1 ? `✓ ${rows1.length} 列` : '尚未選擇檔案'} block />
             <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
             <DropButton onClick={() => fileRef2.current.click()} filled={!!rows2}
-              label={fileName2 || 'Payuni電子錢包'} hint={rows2 ? `✓ ${rows2.length} 列` : '尚未選擇檔案'} block />
+              label={fileName2 || (isMegabank ? '手續費報表' : 'Payuni電子錢包')} hint={rows2 ? `✓ ${rows2.length} 列` : '尚未選擇檔案'} block />
           </>
         ) : (
           <>
@@ -1683,6 +1703,23 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
         略過格式檢查（僅在確定報表正確、只是欄位名稱不同時勾選）
       </label>
       <PanelMsg text={reconMsg} bad={/錯誤|請/} />
+      {reconWarn && (
+        <div style={{ marginTop: 8, padding: '10px 14px', background: C.warnBg, borderRadius: T.rInner, fontSize: 12, color: C.warn }}>
+          <strong>費率檢核未通過（兆豐應固定 6%）</strong>
+          {reconWarn.noFee.length > 0 && (
+            <p style={{ margin: '6px 0 0' }}>
+              查無手續費（手續費報表可能缺列或期間未涵蓋）：{reconWarn.noFee.slice(0, 8).join('、')}
+              {reconWarn.noFee.length > 8 && `…等 ${reconWarn.noFee.length} 筆`}
+            </p>
+          )}
+          {reconWarn.oddRate.length > 0 && (
+            <p style={{ margin: '6px 0 0' }}>
+              費率異常：{reconWarn.oddRate.slice(0, 6).map(o => `${o.key}（${o.fee}/${o.total}＝${o.rate}%）`).join('、')}
+              {reconWarn.oddRate.length > 6 && `…等 ${reconWarn.oddRate.length} 筆`}
+            </p>
+          )}
+        </div>
+      )}
       {createMissing && reconResult?.insertedKeys?.length > 0 && (
         <p style={{ marginTop: 6, marginBottom: 0, fontSize: 12, color: T.g700 }}>
           新增訂單：{reconResult.insertedKeys.slice(0, 5).join('、')}
@@ -1749,9 +1786,10 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
   const bankPanelGeneral = (isShopee || !hasBankStep) ? null : (
     <div>
       <div style={panelLead}>
-        {isPayuniCC ? '上傳玉山對帳單，勾選對應訂單後確認入帳日。'
+        {isPayuniCC || isCoupang || isMegabank
+          ? '上傳玉山對帳單，勾選對應訂單後確認入帳日。'
           : '上傳玉山對帳單，系統以撥款報表「預計撥款日 + 金額」為錨點比對銀行入帳，自動排除同帳號的其他平台撥款。'}
-        {!isPayuniCC && <span style={{ color: T.n600 }}>
+        {!isPayuniCC && !isCoupang && !isMegabank && <span style={{ color: T.n600 }}>
           （{isLanxin ? '信用卡 008/...35101' : isLinePayOfficial ? 'LINE Pay 808/...24585' : 'LINE Pay 387/...60558379'}）
         </span>}
       </div>
@@ -1782,7 +1820,9 @@ function GatewayWorkspace({ gateway, tianxinSlot }) {
         // 從已上傳的撥款報表（rows1）建立「銀行入帳日 → 預計金額」對照表
         // 蘭新信用卡撥款日隔天才到玉山帳戶，所以用 payoutDate+1 當 bankDate
         const linepayByDate = {}
-        const payoutRows = isLinePayOfficial
+        // 酷澎／兆豐的報表沒有預計撥款日，不建對照表（否則會拿 linepay parser 去解讀不相干的檔案）
+        const payoutRows = (isCoupang || isMegabank) ? []
+          : isLinePayOfficial
           ? (rows1 && rows2 ? parseOfficialLinePayReconDual(rows1, rows2) : [])
           : isLanxin
             ? (rows1 ? RECON_PARSERS.lanxin(rows1) : [])

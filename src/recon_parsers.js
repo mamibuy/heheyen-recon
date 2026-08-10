@@ -179,6 +179,71 @@ function parseOfficialLinePayRecon(rows) {
   }).filter(r => r.key)
 }
 
+// 7. 兆豐福利網（雙檔：訂單明細報表 + 手續費報表）
+//
+// 應收一律用「商品金額 + 運費」，不可用「付款總金額」：
+// 客戶若全額以福利金折抵，付款總金額會是 0（實付 0），但兆豐仍照訂單金額扣 6% 撥款給我們。
+// 「訂單總金額」欄位也不可靠 —— 沒有動用福利金的訂單那欄是空的。
+//
+// 手續費報表沒有獨立的訂單編號欄，訂單編號埋在備註文字裡：
+//   「[訂單編號：607020108] 【和和研】純LGG活菌益生菌-五入組-五入組 * 1」
+//
+// 兩份報表都沒有撥款日／實際入帳，實際入帳日由使用者對帳時自行填寫。
+export function parseMegabankRecon(ordRows, feeRows) {
+  const feeByRef = {}
+  for (const r of (feeRows || [])) {
+    const m = String(pick(r, ['備註']) || '').match(/訂單編號[：:]\s*([^\]\s]+)/)
+    if (!m) continue   // 抽不到訂單編號的列（非交易手續費）直接略過
+    const ref = m[1].trim()
+    feeByRef[ref] = (feeByRef[ref] || 0) + num(pick(r, ['手續費']))
+  }
+  return (ordRows || []).map(r => {
+    const key = String(pick(r, ['訂單編號']) || '').trim()   // 檔案裡帶前導空白，務必 trim
+    const total = num(pick(r, ['商品金額'])) + num(pick(r, ['運費']))
+    const fee = feeByRef[key] ?? 0
+    return {
+      key,
+      key_type: 'ref_no',
+      fee,
+      payable: Math.round((total - fee) * 100) / 100,
+      total,
+      order_date: excelDate(pick(r, ['訂單時間', '訂單日期'])) || null,
+      actual_in: null,
+      in_date: null,
+      payout_date: null,
+    }
+  }).filter(r => r.key)
+}
+
+// 兆豐手續費固定為訂單金額的 6%。算出來不符代表兩份報表對不起來
+// （最常見：手續費報表的期間沒涵蓋到某些訂單），回傳待人工確認的清單。
+export const MEGABANK_FEE_RATE = 0.06
+
+export function megabankRateWarnings(parsed) {
+  const noFee = [], oddRate = []
+  for (const r of parsed) {
+    if (!r.total) continue
+    if (!r.fee) { noFee.push(r.key); continue }
+    const rate = r.fee / r.total
+    if (Math.abs(rate - MEGABANK_FEE_RATE) > 0.0005) {
+      oddRate.push({ key: r.key, rate: (rate * 100).toFixed(2), fee: r.fee, total: r.total })
+    }
+  }
+  return (noFee.length || oddRate.length) ? { noFee, oddRate } : null
+}
+
+// 兆豐雙檔的欄位檢查
+export function checkMegabankColumns(ordRows, feeRows) {
+  const bad = []
+  const ho = new Set(Object.keys(ordRows?.[0] || {}).map(h => String(h).trim()))
+  const hf = new Set(Object.keys(feeRows?.[0] || {}).map(h => String(h).trim()))
+  if (!ho.has('訂單編號')) bad.push('訂單明細報表缺少「訂單編號」')
+  if (!ho.has('商品金額')) bad.push('訂單明細報表缺少「商品金額」')
+  if (!hf.has('手續費')) bad.push('手續費報表缺少「手續費」')
+  if (!hf.has('備註')) bad.push('手續費報表缺少「備註」（訂單編號來源）')
+  return bad.length ? bad : null
+}
+
 // ============================================================
 // 上傳檔案格式檢查
 // 每條金流列出 parser 真正會讀的關鍵欄位；每組至少要命中一個名稱。
@@ -250,10 +315,13 @@ export const GATEWAY_LABELS = {
   coupang: '酷澎',
   payuni_cc: '官網-信用卡',
   payuni_linepay: '官網-LinePay',
+  megabank: '兆豐福利網',
 }
 
 export function detectGateway(headers) {
   const h = headers.join('|')
+  // 兆豐擺最前面：兩份報表的特徵欄位（福利金）其他金流都沒有，先攔下避免被後面的規則誤判
+  if (h.includes('福利金折扣') || (h.includes('福利金') && h.includes('類別') && h.includes('備註'))) return 'megabank'
   if (h.includes('成交手續費') || h.includes('金流與系統處理費')) return 'shopee'
   if (h.includes('手續費合計') && h.includes('LINE Pay優惠')) return 'linepay'
   if (h.includes('主支付手續費') || h.includes('藍新金流交易序號')) return 'lanxin'

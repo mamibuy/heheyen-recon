@@ -8,6 +8,7 @@ import { stripDash } from './recon_parsers.js'
 const GATEWAY_PLATFORM = {
   shopee: '蝦皮', linepay: 'LINE商城', lanxin: 'LINE商城',
   coupang: '酷澎', payuni_cc: '官網', payuni_linepay: '官網',
+  megabank: '兆豐',
 }
 
 // 同一平台下用 pay_method 區分金流（LINE商城/官網各有兩條）
@@ -71,6 +72,7 @@ export async function applyInvoice(supabase, { orderIds, invoiceNo, invoiceDate,
 const NEW_ORDER_PAYMETHOD = {
   shopee: '蝦皮', linepay: 'LINE_PAY', lanxin: 'CREDIT_CARD',
   coupang: '酷澎', payuni_cc: '線上刷卡', payuni_linepay: 'Line Pay',
+  megabank: '兆豐',
 }
 
 // 去槓號的鑰匙補回槓號：官網 ref_no 一律 4-4-4（12 碼），每 4 碼補一個 '-'
@@ -131,6 +133,8 @@ export async function reconcile(supabase, gateway, parsedRows, opts = {}) {
           if (row.tx_code != null) rec.tx_code = row.tx_code
           if (row.tx_fee != null) rec.tx_fee = row.tx_fee
           if (row.order_invoice_amount != null) rec.order_invoice_amount = row.order_invoice_amount
+          // 對帳單自帶訂單日期時一併寫入（兆豐訂單只從對帳單進來，沒有出貨轉換那條路）
+          if (row.order_date) rec.order_date = row.order_date
           newOrders.push(rec)
         }
       } else {
