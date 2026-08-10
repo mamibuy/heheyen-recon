@@ -142,6 +142,9 @@ function parseCoupangRecon(rows) {
 }
 
 // 5. 官網信用卡（C PayUni 入帳表）— 去槓號比對
+// C 欄「付款(退款)日期」→ order_date，但僅在訂單日期原本是空的時候才補
+// （見 reconcile 的 order_date_fill_only）。已從官網出貨報表帶入正確下單日的訂單不覆蓋：
+// 該欄在退款列填的是退款日，蓋上去會讓訂單日期完全失真。
 function parsePayuniCCRecon(rows) {
   return rows.map(r => {
     const fee = Math.abs(num(pick(r, ['手續費'])))
@@ -156,6 +159,8 @@ function parsePayuniCCRecon(rows) {
       actual_in: payable,
       in_date,
       payout_date: in_date,
+      order_date: excelDate(pick(r, ['付款(退款)日期', '付款日期'])) || null,
+      order_date_fill_only: true,
     }
   }).filter(r => r.key)
 }

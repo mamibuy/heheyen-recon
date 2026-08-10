@@ -89,7 +89,7 @@ export async function reconcile(supabase, gateway, parsedRows, opts = {}) {
 
   const { data: orders, error } = await supabase
     .from('shipping_orders')
-    .select('id,ref_no,total,recon_status')
+    .select('id,ref_no,total,recon_status,order_date')
   if (error) throw new Error('撈取訂單失敗：' + error.message)
 
   // 建兩張查找表：原始 ref_no 和去槓號後的 ref_no
@@ -162,6 +162,11 @@ export async function reconcile(supabase, gateway, parsedRows, opts = {}) {
     if (row.tx_code !== undefined) updates.tx_code = row.tx_code ?? null
     if (row.tx_fee !== undefined) updates.tx_fee = row.tx_fee ?? null
     if (row.order_invoice_amount != null) updates.order_invoice_amount = row.order_invoice_amount
+    // 對帳單自帶訂單日期：order_date_fill_only 的來源（如 PayUni 的付款/退款日）
+    // 只補原本沒有日期的訂單，不覆蓋出貨報表帶進來的正確下單日
+    if (row.order_date && !(row.order_date_fill_only && order.order_date)) {
+      updates.order_date = row.order_date
+    }
 
     const { error: updateError } = await supabase
       .from('shipping_orders')

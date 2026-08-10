@@ -511,7 +511,7 @@ function ReconPage() {
         比對天心「客戶訂單」與各平台訂單編號，將「單號」寫入銷貨單號、「發票號碼」寫入訂單發票號碼。不分通路，全部平台一起回填。
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input ref={txFileRef} type="file" accept=".xlsx,.xls" onChange={readTxFile} style={{ display: 'none' }} />
+        <input ref={txFileRef} type="file" accept=".xlsx,.xls,.csv" onChange={readTxFile} style={{ display: 'none' }} />
         <DropButton onClick={() => txFileRef.current.click()} filled={!!txRows}
           label={txFileName || '選擇天心銷貨單'}
           hint={txRows ? `✓ ${txRows.length} 列` : '尚未選擇檔案'} />
@@ -1585,7 +1585,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
     <div>
       <div style={panelLead}>上傳蝦皮「我的銷售」Excel，自動讀取訂單編號、訂單成立日期、買家總支付金額，重複訂單自動略過。</div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input ref={shopeeOrdFileRef} type="file" accept=".xlsx,.xls"
+        <input ref={shopeeOrdFileRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={e => {
             const f = e.target.files?.[0]; if (!f) return
             setShopeeOrdFileName(f.name)
@@ -1653,16 +1653,16 @@ function GatewayWorkspace({ gateway, txVersion }) {
       <div style={{ display: 'grid', gridTemplateColumns: isTwoFile ? '1fr 1fr' : '1fr', gap: 14, marginTop: 14 }}>
         {isTwoFile ? (
           <>
-            <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
+            <input ref={fileRef1} type="file" accept=".xlsx,.xls,.csv" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
             <DropButton onClick={() => fileRef1.current.click()} filled={!!rows1}
               label={fileName1 || (isMegabank ? '訂單明細報表' : 'Line Pay撥款明細')} hint={rows1 ? `✓ ${rows1.length} 列` : '尚未選擇檔案'} block />
-            <input ref={fileRef2} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
+            <input ref={fileRef2} type="file" accept=".xlsx,.xls,.csv" onChange={e => readFile(e, setRows2, setFileName2)} style={{ display: 'none' }} />
             <DropButton onClick={() => fileRef2.current.click()} filled={!!rows2}
               label={fileName2 || (isMegabank ? '手續費報表' : 'Payuni電子錢包')} hint={rows2 ? `✓ ${rows2.length} 列` : '尚未選擇檔案'} block />
           </>
         ) : (
           <>
-            <input ref={fileRef1} type="file" accept=".xlsx,.xls" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
+            <input ref={fileRef1} type="file" accept=".xlsx,.xls,.csv" onChange={e => readFile(e, setRows1, setFileName1)} style={{ display: 'none' }} />
             <DropButton onClick={() => fileRef1.current.click()} filled={!!rows1}
               label={fileName1 || (isShopee ? '選擇蝦皮「我的進帳」' : isPayuniCC ? '選擇入帳表' : '選擇對帳單')}
               hint={rows1 ? `✓ ${rows1.length} 列` : '尚未選擇檔案'} block />
@@ -1735,7 +1735,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
       <div style={panelLead}>上傳 Payuni 帳戶明細，挑出「執行方式＝資訊服務」的交易處理費。</div>
       <SourceHint text={SOURCE_HINT.txfee} onSop={() => setSopOpen(true)} />
       <div style={{ marginTop: 14 }}>
-        <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readTxFeeAccFile} />
+        <input type="file" ref={txFeeAccFileRef} style={{ display: 'none' }} accept=".xlsx,.xls,.csv" onChange={readTxFeeAccFile} />
         <DropButton onClick={() => txFeeAccFileRef.current.click()} filled={txFeeAccRows.length > 0}
           label={txFeeAccFileName || '上傳帳戶明細'}
           hint={txFeeAccRows.length > 0 ? `✓ ${txFeeAccRows.length} 筆` : '尚未選擇檔案'} />
@@ -1789,7 +1789,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
       </div>
       <SourceHint text={SOURCE_HINT.bank} onSop={() => setSopOpen(true)} />
       <div style={{ marginTop: 14 }}>
-        <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
+        <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls,.csv" onChange={readBankFile} />
         <DropButton onClick={() => bankFileRef.current.click()} filled={bankRows.length > 0}
           label={bankFileName || '上傳玉山對帳單'}
           hint={bankRows.length > 0 ? `✓ ${bankRows.length} 筆入帳` : '尚未選擇檔案'} />
@@ -2082,7 +2082,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
       <div style={panelLead}>上傳玉山對帳單，篩出備註含「SHOPEE」或帳號 808/0370979139156 的入帳，手動勾選對應訂單後確認入帳日。</div>
       <SourceHint text={SOURCE_HINT.bank} onSop={() => setSopOpen(true)} />
       <div style={{ marginTop: 14 }}>
-        <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls" onChange={readBankFile} />
+        <input type="file" ref={bankFileRef} style={{ display: 'none' }} accept=".xlsx,.xls,.csv" onChange={readBankFile} />
         <DropButton onClick={() => bankFileRef.current.click()} filled={bankRows.length > 0}
           label={bankFileName || '上傳玉山對帳單'}
           hint={bankRows.length > 0 ? `✓ ${bankRows.length} 筆入帳` : '尚未選擇檔案'} />
