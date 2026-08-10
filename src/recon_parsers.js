@@ -352,16 +352,39 @@ export function parseOfficialLinePayReconDual(d1rows, d2rows) {
       payableByTx[key] = num(pick(r, ['排定的各項目撥款']))
     }
   }
+  // 交易狀態白名單：只處理「已付款」。付款取消／未付款不是實際結算，
+  // 寫進去會變成應收 0、應入帳 0 的垃圾訂單（勾自動建檔時尤其明顯）。
+  // 被略過的列掛在回傳陣列的 .skipped 上，由 UI 列出來，不靜默丟掉。
+  // 舊版報表沒有「交易狀態」欄，該欄不存在時不過濾以維持相容。
+  const skipped = []
+  const usable = (d2rows || []).filter(r => {
+    const st = String(pick(r, ['交易狀態']) || '').trim()
+    if (!st || st === '已付款') return true
+    skipped.push({ key: stripDash(String(pick(r, ['商店訂單編號'])).trim()), status: st })
+    return false
+  })
+
   // 從 D-2 組裝每筆訂單
-  return d2rows.map(r => {
+  // 金額欄位名稱依匯出報表而異：交易動態明細用「付款金額」，交易查詢表用「收款金額／訂單金額」。
+  // 全部列進 pick，否則 total 會是 0，D-1 沒勾稽到時 payable 會變成負的手續費。
+  const out = usable.map(r => {
     const key = stripDash(String(pick(r, ['商店訂單編號'])).trim())
     const txCode = String(pick(r, ['支付方式對應碼'])).trim()
     const txKey = txCode.slice(0, 15)
-    const total = num(pick(r, ['付款金額', '交易金額']))
+    const total = num(pick(r, ['付款金額', '交易金額', '收款金額', '訂單金額']))
     const fee = feeByTx[txKey] ?? 0
     const payable = payableByTx[txKey] ?? (total - fee)
     const txFee = num(pick(r, ['交易處理費']))
     const in_date = excelDate(pick(r, ['入帳日期', '撥款日期'])) || null
-    return { key, key_type: 'ref_no_nodash', fee, payable, actual_in: null, in_date, payout_date: in_date, tx_code: txCode || null, tx_fee: txFee }
+    return {
+      key, key_type: 'ref_no_nodash', fee, payable, total,
+      actual_in: null, in_date, payout_date: in_date,
+      tx_code: txCode || null, tx_fee: txFee,
+      // C 欄「交易日期」→ 訂單日期，僅補原本沒有日期的訂單（同官網信用卡的處理）
+      order_date: excelDate(pick(r, ['交易日期'])) || null,
+      order_date_fill_only: true,
+    }
   }).filter(r => r.key)
+  out.skipped = skipped
+  return out
 }

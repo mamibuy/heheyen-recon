@@ -599,6 +599,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
   const [createMissing, setCreateMissing] = useState(true)   // 對帳單比對不到的訂單自動建檔
   const [skipColCheck, setSkipColCheck] = useState(false)    // 略過上傳檔案的欄位格式檢查
   const [reconWarn, setReconWarn] = useState(null)           // 兆豐 6% 費率檢核結果
+  const [reconSkipped, setReconSkipped] = useState(null)     // 對帳單中被略過的列（如付款取消）
   const fileRef1 = useRef(null)
   const fileRef2 = useRef(null)
 
@@ -1162,6 +1163,8 @@ function GatewayWorkspace({ gateway, txVersion }) {
       }
       // 兆豐手續費固定為訂單金額的 6%，不符就示警（多半是手續費報表缺列或期間沒對齊）
       setReconWarn(isMegabank ? megabankRateWarnings(parsed) : null)
+      // 對帳單中未成立的交易（如付款取消）不寫入，但要列出來讓使用者知道略過了什麼
+      setReconSkipped(parsed.skipped?.length ? parsed.skipped : null)
       const result = await reconcile(supabase, gateway, parsed, { createMissing })
       setReconResult(result)
       const parts = [`比對 ${parsed.length} 筆`, `回填 ${result.updated} 筆`]
@@ -1697,6 +1700,13 @@ function GatewayWorkspace({ gateway, txVersion }) {
         略過格式檢查（僅在確定報表正確、只是欄位名稱不同時勾選）
       </label>
       <PanelMsg text={reconMsg} bad={/錯誤|請/} />
+      {reconSkipped && (
+        <div style={{ marginTop: 8, padding: '10px 14px', background: T.n200, borderRadius: T.rInner, fontSize: 12, color: T.n700 }}>
+          <strong>已略過 {reconSkipped.length} 筆未成立的交易</strong>（不寫入資料庫）：
+          {reconSkipped.slice(0, 8).map(s => `${s.key}（${s.status}）`).join('、')}
+          {reconSkipped.length > 8 && `…等 ${reconSkipped.length} 筆`}
+        </div>
+      )}
       {reconWarn && (
         <div style={{ marginTop: 8, padding: '10px 14px', background: C.warnBg, borderRadius: T.rInner, fontSize: 12, color: C.warn }}>
           <strong>費率檢核未通過（兆豐應固定 6%）</strong>
