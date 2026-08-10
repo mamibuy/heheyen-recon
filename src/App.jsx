@@ -73,6 +73,35 @@ function parseTianxinSheet(ws) {
   return out
 }
 
+// 對帳單常見的比對鑰匙欄位，用來判斷某一列是不是真正的表頭
+const KEY_COLS = ['訂單編號', '商店訂單編號', '訂單號碼', '交易號碼', '客戶訂單']
+
+// 有些平台報表最上面有賣家帳號／期間／小計等區塊，真正的表頭不在第一列。
+// 例：蝦皮「我的進帳」表頭在第 6 列，直接 sheet_to_json 會把「賣家帳號/從/至」
+// 當成欄位名，解析結果全是 __EMPTY_N，parser 一筆都讀不到。
+// 先用預設方式解析，認得出鑰匙欄位就直接用（既有可正常運作的報表行為不變）；
+// 認不出才往下尋找含鑰匙欄位的那一列當表頭。
+function sheetToRows(ws) {
+  const direct = XLSX.utils.sheet_to_json(ws, { defval: '' })
+  if (direct.length && Object.keys(direct[0]).some(k => KEY_COLS.includes(String(k).trim()))) return direct
+
+  const arr = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+  const trimmed = arr.map(r => Array.isArray(r) ? r.map(c => String(c).trim()) : [])
+  const hi = trimmed.findIndex(r => r.some(c => KEY_COLS.includes(c)))
+  if (hi < 0) return direct
+
+  const header = trimmed[hi]
+  const out = []
+  for (let i = hi + 1; i < arr.length; i++) {
+    const r = arr[i]
+    if (!r.some(c => String(c).trim() !== '')) continue   // 跳過空白列
+    const obj = {}
+    header.forEach((h, ci) => { if (h) obj[h] = r[ci] })
+    out.push(obj)
+  }
+  return out
+}
+
 // 讀天心銷貨明細（.xls/.xlsx），套用上面的動態表頭解析
 function readTianxinFile(e, setRows, setFileName) {
   const f = e.target.files?.[0]
@@ -790,14 +819,13 @@ function GatewayWorkspace({ gateway, txVersion }) {
     const reader = new FileReader()
     reader.onload = ev => {
       const wb = XLSX.read(ev.target.result, { type: 'array' })
-      const opts = { defval: '' }
       let ws
       if (wb.Sheets['Income']) {
         ws = wb.Sheets['Income']
       } else {
         ws = wb.Sheets[wb.SheetNames[0]]
       }
-      setRows(XLSX.utils.sheet_to_json(ws, opts))
+      setRows(sheetToRows(ws))
     }
     reader.readAsArrayBuffer(f)
   }
@@ -1355,6 +1383,8 @@ function GatewayWorkspace({ gateway, txVersion }) {
         order_invoice_no: updates.order_invoice_no || null,
         fee_invoice_no: updates.fee_invoice_no || null,
         tx_fee_invoice_no: updates.tx_fee_invoice_no || null,
+        // 數字欄位：空字串要轉成 null，不能直接送給 Supabase
+        total: updates.total !== '' && updates.total != null ? parseFloat(updates.total) : null,
         payable: updates.payable !== '' && updates.payable != null ? parseFloat(updates.payable) : null,
         actual_in: updates.actual_in !== '' && updates.actual_in != null ? parseFloat(updates.actual_in) : null,
         in_date: updates.in_date || null,
@@ -2933,6 +2963,11 @@ function GatewayWorkspace({ gateway, txVersion }) {
                   placeholder="AB-12345678" style={inpT} />
               </Field>
             )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Field label="應收">
+                <input type="number" value={editOrder.total ?? ''} onChange={e => setEditOrder(p => ({ ...p, total: e.target.value }))} style={inpT} />
+              </Field>
+            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <Field label="應入帳">
                 <input type="number" value={editOrder.payable ?? ''} onChange={e => setEditOrder(p => ({ ...p, payable: e.target.value }))} style={inpT} />
