@@ -645,6 +645,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
   const [bankEntryChecked, setBankEntryChecked] = useState(new Set())
   const [bankCCOrderSel, setBankCCOrderSel] = useState({})
   const [confirmedGroupExp, setConfirmedGroupExp] = useState({})
+  const [releasingKey, setReleasingKey] = useState(null)   // 正在解除的入帳群組
   const bankFileRef = useRef(null)
 
   const [ordInvRows, setOrdInvRows] = useState(null)
@@ -767,6 +768,20 @@ function GatewayWorkspace({ gateway, txVersion }) {
 
   // 上方全域區的天心回填會動到本頁籤的訂單，回填完重新載入才看得到 SA 單號／發票號碼
   useEffect(() => { if (txVersion) loadOrders() }, [txVersion])
+
+  // 已確認入帳群組：把訂單退回未入帳，讓使用者可以修正勾錯的歸戶
+  // 清掉 in_date / actual_in / bank_deposit，狀態退回「平台已結算」（群組只收 已入帳，不會動到 已對帳）
+  async function releaseFromGroup(ids, label) {
+    if (!ids.length) return
+    if (!window.confirm(`確定將 ${label} 退回未入帳？\n入帳日、實際入帳金額會被清空，狀態改回「平台已結算」。`)) return
+    setReleasingKey(label)
+    const { error } = await supabase.from('shipping_orders')
+      .update({ in_date: null, actual_in: null, bank_deposit: null, recon_status: '平台已結算' })
+      .in('id', ids)
+    setReleasingKey(null)
+    if (error) { window.alert('解除失敗：' + error.message); return }
+    await loadOrders()
+  }
 
   function readFile(e, setRows, setFileName) {
     const f = e.target.files?.[0]
@@ -1738,7 +1753,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
           groups[k].payable += o.payable || 0
         })
         const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
-        return <ConfirmedGroups groups={sorted} exp={confirmedGroupExp} setExp={setConfirmedGroupExp} />
+        return <ConfirmedGroups groups={sorted} exp={confirmedGroupExp} setExp={setConfirmedGroupExp} onRelease={releaseFromGroup} releasingKey={releasingKey} />
       })()}
 
       {bankRows.length > 0 && (() => {
@@ -1785,7 +1800,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
             const br = displayRows[idx]
             if (!br) continue
             const dateOrders = isLinePayOfficial
-              ? orders.filter(o => o.recon_status !== '已入帳')
+              ? orders.filter(o => o.recon_status !== '已入帳' || !o.in_date)
               : (() => {
                   const payoutInfo = linepayByDate[br.date]
                   const matchDate = payoutInfo?.payoutDate || br.date
@@ -1840,7 +1855,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
                 const expanded = !!bankExpanded[idx]
                 const matchDate = payoutInfo?.payoutDate || br.date
                 const dateOrders = ((isLinePayOfficial || isManualSelection)
-                  ? orders.filter(o => o.recon_status !== '已入帳')
+                  ? orders.filter(o => o.recon_status !== '已入帳' || !o.in_date)
                   : orders.filter(o => (o.in_date || '').slice(0, 10) === matchDate)
                 ).sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
                 const ccSel = isManualSelection ? (bankCCOrderSel[idx] ?? new Set()) : new Set()
@@ -2030,7 +2045,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
           groups[k].payable += o.payable || 0
         })
         const sorted = Object.values(groups).sort((a, b) => a.date.localeCompare(b.date))
-        return <ConfirmedGroups groups={sorted} exp={confirmedGroupExp} setExp={setConfirmedGroupExp} />
+        return <ConfirmedGroups groups={sorted} exp={confirmedGroupExp} setExp={setConfirmedGroupExp} onRelease={releaseFromGroup} releasingKey={releasingKey} />
       })()}
 
       {/* 銀行對帳單入帳列表 */}
@@ -2078,7 +2093,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
               {displayRows.map((br, idx) => {
                 const ccSel = bankCCOrderSel[idx] ?? new Set()
                 const pendingOrders = orders
-                  .filter(o => o.recon_status !== '已入帳')
+                  .filter(o => o.recon_status !== '已入帳' || !o.in_date)
                   .sort((a, b) => (a.order_date || '').localeCompare(b.order_date || ''))
                 const selectedOrders = pendingOrders.filter(o => ccSel.has(String(o.id)))
                 const ordersPayable = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
@@ -3444,7 +3459,8 @@ function SumBar({ tone, children }) {
 }
 
 // 已確認入帳群組（依 in_date 彙總）
-function ConfirmedGroups({ groups, exp, setExp }) {
+// onRelease(ids, label)：把整組或單筆訂單退回未入帳，供修正勾錯的歸戶
+function ConfirmedGroups({ groups, exp, setExp, onRelease, releasingKey }) {
   return (
     <div style={{ marginTop: 18 }}>
       <p style={{ fontSize: 11, letterSpacing: '.06em', color: T.n600, margin: '0 0 8px', fontWeight: 600 }}>已確認入帳</p>
@@ -3461,6 +3477,15 @@ function ConfirmedGroups({ groups, exp, setExp }) {
                   style={{ ...btnSec, fontSize: 12, padding: '4px 12px', marginLeft: 'auto' }}>
                   {open ? '收起 ▲' : '展開 ▼'}
                 </button>
+                {onRelease && (
+                  <button
+                    disabled={releasingKey != null}
+                    onClick={() => onRelease(g.orders.map(o => o.id), `入帳日 ${g.date} 這組（${g.orders.length} 筆）`)}
+                    style={{ ...btnSec, fontSize: 12, padding: '4px 12px', color: T.danger, borderColor: T.danger,
+                      opacity: releasingKey != null ? .5 : 1, cursor: releasingKey != null ? 'default' : 'pointer' }}>
+                    解除整組
+                  </button>
+                )}
               </div>
               {open && (
                 <div style={{ marginTop: 10, borderTop: `1px solid ${T.g300}`, paddingTop: 10 }}>
@@ -3470,6 +3495,7 @@ function ConfirmedGroups({ groups, exp, setExp }) {
                         <th style={subTh}>平台訂單編號</th>
                         <th style={subTh}>訂單日期</th>
                         <th style={{ ...subTh, textAlign: 'right' }}>應入帳</th>
+                        {onRelease && <th style={{ ...subTh, textAlign: 'right' }} />}
                       </tr>
                     </thead>
                     <tbody>
@@ -3478,6 +3504,19 @@ function ConfirmedGroups({ groups, exp, setExp }) {
                           <td style={{ padding: '4px 6px', fontFamily: 'monospace' }}>{o.ref_no}</td>
                           <td style={{ padding: '4px 6px' }}>{o.order_date}</td>
                           <td style={{ padding: '4px 6px', textAlign: 'right' }}>{o.payable?.toLocaleString()}</td>
+                          {onRelease && (
+                            <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                              <button
+                                disabled={releasingKey != null}
+                                onClick={() => onRelease([o.id], `訂單 ${o.ref_no}`)}
+                                style={{ background: 'none', border: 'none', padding: '2px 4px', fontSize: 12,
+                                  color: T.danger, textDecoration: 'underline', fontFamily: 'inherit',
+                                  opacity: releasingKey != null ? .5 : 1,
+                                  cursor: releasingKey != null ? 'default' : 'pointer' }}>
+                                移除
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
