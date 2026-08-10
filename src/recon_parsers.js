@@ -74,6 +74,9 @@ function parseShopeeRecon(rows) {
 }
 
 // 2. LINE商城 - LINE Pay（E-1）
+// D 欄「交易日期」→ order_date，僅補原本沒有訂單日期的訂單（同其他金流）。
+// total 必須回傳：原本只算不傳，reconcile 的 `if (row.total != null)` 永遠不成立，
+// 對帳單匯入建立的訂單應收會一直停在 0（手續費與應入帳卻是對的）。
 function parseLinePayRecon(rows) {
   return rows.map(r => {
     const fee = num(pick(r, ['手續費合計（含營業稅）', '手續費合計']))
@@ -83,10 +86,13 @@ function parseLinePayRecon(rows) {
       key: String(pick(r, ['訂單號碼', '訂單編號'])).trim(),
       key_type: 'ref_no',
       fee,
+      total,
       payable: total - fee,
       actual_in: null,
       in_date: payout_date,
       payout_date,
+      order_date: excelDate(pick(r, ['交易日期'])) || null,
+      order_date_fill_only: true,
     }
   }).filter(r => r.key)
 }
