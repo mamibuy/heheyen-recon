@@ -1473,14 +1473,18 @@ function GatewayWorkspace({ gateway, txVersion }) {
     invoiceGroups[o.fee_invoice_no].count++
   })
   // 訂單發票分組
+  // 訂單（請款）發票分組：一張月結銷項發票群組多筆訂單，
+  // 發票金額須等於該組訂單的「應入帳」合計 —— 蝦皮的銷項發票已內扣手續費，
+  // 應入帳（＝代收金額 − 手續費）就是蝦皮實際撥給我們、也就是請款的金額。
   const ordInvGroups = {}
   shownOrders.forEach(o => {
     if (!o.order_invoice_no) return
     if (!ordInvGroups[o.order_invoice_no]) ordInvGroups[o.order_invoice_no] = {
       invDate: o.order_invoice_date ?? null,
-      invAmountSum: 0, count: 0,
+      invAmount: o.order_invoice_amount ?? null,   // 該組的請款發票金額（每筆重複存同一值）
+      payableSum: 0, count: 0,
     }
-    ordInvGroups[o.order_invoice_no].invAmountSum += o.order_invoice_amount || 0
+    ordInvGroups[o.order_invoice_no].payableSum += o.payable || 0
     ordInvGroups[o.order_invoice_no].count++
   })
 
@@ -1498,6 +1502,10 @@ function GatewayWorkspace({ gateway, txVersion }) {
   const invColorIdx = {}
   let _ci = 0
   Object.keys(invoiceGroups).forEach(k => { invColorIdx[k] = _ci++ % 2 })
+
+  const ordInvColorIdx = {}
+  let _oci = 0
+  Object.keys(ordInvGroups).forEach(k => { ordInvColorIdx[k] = _oci++ % 2 })
 
   // 入帳群組：依 in_date 彙總已入帳訂單（僅官網>LINE Pay / 官網>信用卡）
   const showBankGroup = isLinePayOfficial || isPayuniCC
@@ -1658,7 +1666,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
   stepPanel.recon = (
     <div>
       <div style={panelLead}>
-        {isShopee ? '上傳蝦皮「我的進帳」，系統比對訂單編號並回填手續費、應入帳與代收付發票金額。'
+        {isShopee ? '上傳蝦皮「我的進帳」，系統比對訂單編號並回填應收、手續費與應入帳。'
           : isPayuniCC ? '上傳 PayUni 入帳表，以去槓號的商店訂單編號比對，回填手續費與入帳金額。'
           : isMegabank ? '上傳兆豐「訂單明細報表」與「手續費報表」，系統以訂單編號勾稽兩表。應收取「商品金額＋運費」（非付款總金額，全額福利金折抵的訂單付款總金額為 0），應入帳＝應收－手續費。'
           : isTwoFile ? '上傳兩份撥款報表，系統以支付對應碼勾稽兩表，回填手續費與應入帳金額。'
@@ -2228,13 +2236,20 @@ function GatewayWorkspace({ gateway, txVersion }) {
     const selectedOrders = ordInvEntryMethod === 'auto'
       ? (ordInvEntryPreview || [])
       : orders.filter(o => ordInvEntryChecked.has(o.id))
-    const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.order_invoice_amount || 0), 0) * 100) / 100
+    // 銷項發票已內扣手續費，請款金額＝該組訂單的應入帳合計（＝代收金額 − 手續費）
+    const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
     const diff = Math.round((totalSum - amtNum) * 100) / 100
     const isMatch = amtNum > 0 && diff === 0
     const hasSel = selectedOrders.length > 0
     return (
       <div>
-        <div style={panelLead}>輸入訂單發票（代收付）號碼，勾選或以期間篩選要歸入這張發票的訂單，加總後套用。</div>
+        <div style={panelLead}>
+          依發票號碼分組核對：一個月開立一張銷項發票跟蝦皮請款，該發票已內扣手續費，
+          金額須等於該組訂單的<strong>應入帳合計</strong>（＝代收金額 − 手續費）。左側色帶與下方明細表的訂單相互對應。
+        </div>
+        <InvoiceGroupCards
+          groups={ordInvGroups} colorIdx={ordInvColorIdx} kind="ord"
+          orders={shownOrders} onOpen={k => { setViewOrdInvKey(k); setOrdInvDeleteConfirm(false); setOrdInvPopupDate(ordInvGroups[k]?.invDate || '') }} />
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <Field label="發票號碼">
             <input value={ordInvEntryNo} onChange={e => setOrdInvEntryNo(e.target.value)} placeholder="AB-12345678" style={inpT} />
@@ -2271,8 +2286,8 @@ function GatewayWorkspace({ gateway, txVersion }) {
                         else setOrdInvEntryChecked(new Set(previewOrders.map(o => o.id)))
                       }} />
                   </th>
-                  {['平台訂單編號', '訂單日期', '代收付發票金額'].map(c =>
-                    <th key={c} style={{ ...thT, position: 'static', textAlign: c === '代收付發票金額' ? 'right' : 'left' }}>{c}</th>)}
+                  {['平台訂單編號', '訂單日期', '應入帳'].map(c =>
+                    <th key={c} style={{ ...thT, position: 'static', textAlign: c === '應入帳' ? 'right' : 'left' }}>{c}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -2300,7 +2315,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
         {(hasSel || (ordInvEntryPreview && ordInvEntryMethod === 'auto')) && (
           <SumBar tone={isMatch ? 'ok' : amtNum > 0 && diff !== 0 ? 'bad' : 'flat'}>
             <span style={{ fontSize: 13 }}>訂單筆數 <strong>{selectedOrders.length}</strong></span>
-            <span style={{ fontSize: 13 }}>代收付發票金額加總 <strong>{totalSum.toLocaleString()}</strong></span>
+            <span style={{ fontSize: 13 }}>應入帳合計 <strong>{totalSum.toLocaleString()}</strong></span>
             {amtNum > 0 && <span style={{ fontSize: 13 }}>發票金額 <strong>{amtNum.toLocaleString()}</strong></span>}
             {amtNum > 0 && (
               <span style={{ fontSize: 13, color: isMatch ? T.g700 : T.danger, fontWeight: 700 }}>
@@ -2497,7 +2512,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
     { label: '平台訂單編號', key: 'ref_no' },
     { label: '銷貨單號', key: 'sa_no' },
     { label: '訂單發票號碼', key: 'order_invoice_no' },
-    ...(isShopee ? [{ label: '代收付發票金額', key: null, align: 'right' }] : []),
+    ...(isShopee ? [{ label: '請款發票金額', key: null, align: 'right' }] : []),
     ...(isShopee ? [] : [{ label: '對應碼', key: 'tx_code' }]),
     { label: '訂單日期', key: 'order_date' },
     { label: '應收', key: 'total', align: 'right' },
@@ -3207,8 +3222,20 @@ function GatewayWorkspace({ gateway, txVersion }) {
                     </td>
                   </tr>
                   <tr style={mRow}>
-                    <td style={mLabel}>代收付發票金額</td>
-                    <td style={mVal}>{Math.round(grp.invAmountSum * 100) / 100}</td>
+                    <td style={mLabel}>應入帳合計</td>
+                    <td style={mVal}>{Math.round(grp.payableSum * 100) / 100}</td>
+                  </tr>
+                  <tr style={mRow}>
+                    <td style={mLabel}>請款發票金額</td>
+                    <td style={mVal}>{grp.invAmount != null ? grp.invAmount.toLocaleString() : '未填'}</td>
+                  </tr>
+                  <tr style={mRow}>
+                    <td style={mLabel}>核對結果</td>
+                    <td style={{ ...mVal, color: grp.invAmount == null ? T.n600 : Math.abs(grp.payableSum - grp.invAmount) < 0.01 ? T.g700 : T.danger }}>
+                      {grp.invAmount == null ? '—'
+                        : Math.abs(grp.payableSum - grp.invAmount) < 0.01 ? '✓ 相符'
+                        : `✗ 差異 ${Math.round((grp.payableSum - grp.invAmount) * 100) / 100}`}
+                    </td>
                   </tr>
                   <tr style={mRow}>
                     <td style={mLabel}>包含訂單</td>
@@ -3573,16 +3600,16 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
     return (
       <div style={{ border: `1.5px dashed ${T.divider}`, background: T.bg, borderRadius: T.rPanel,
         padding: '16px 18px', fontSize: 13, color: T.n600 }}>
-        尚未開立{kind === 'tx' ? '交易處理費' : '手續費'}發票 — 用下方欄位輸入發票號碼、勾選訂單即可群組成一張發票。
+        尚未開立{kind === 'tx' ? '交易處理費' : kind === 'ord' ? '請款' : '手續費'}發票 — 用下方欄位輸入發票號碼、勾選訂單即可群組成一張發票。
       </div>
     )
   }
-  const field = kind === 'tx' ? 'tx_fee_invoice_no' : 'fee_invoice_no'
+  const field = kind === 'tx' ? 'tx_fee_invoice_no' : kind === 'ord' ? 'order_invoice_no' : 'fee_invoice_no'
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
       {keys.map((k, i) => {
         const g = groups[k]
-        const sum = Math.round((g.feeSum ?? g.txFeeSum ?? 0) * 100) / 100
+        const sum = Math.round((g.feeSum ?? g.txFeeSum ?? g.payableSum ?? 0) * 100) / 100
         const amt = g.invAmount
         const ok = amt != null ? Math.abs(sum - amt) < 0.01 : null
         const ci = colorIdx[k] != null ? colorIdx[k] : i % 2
@@ -3596,7 +3623,7 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ fontSize: 11, letterSpacing: '.06em', color: ok === false ? T.danger : T.n600 }}>
-                {kind === 'tx' ? '交易處理費發票' : '手續費發票'} · 共 {g.count} 筆
+                {kind === 'tx' ? '交易處理費發票' : kind === 'ord' ? '請款發票' : '手續費發票'} · 共 {g.count} 筆
               </div>
               {ok != null && (
                 <Tag tone={ok ? 'accent2' : 'danger'} style={{ fontSize: 11 }}>
@@ -3614,7 +3641,7 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
               {refs.length > 6 && <Tag tone="neutral" style={{ fontSize: 11, fontWeight: 400 }}>+{refs.length - 6}</Tag>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 13 }}>
-              <span style={{ color: T.n700 }}>費用合計</span><strong>NT$ {sum.toLocaleString()}</strong>
+              <span style={{ color: T.n700 }}>{kind === 'ord' ? '應入帳合計' : '費用合計'}</span><strong>NT$ {sum.toLocaleString()}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 13 }}>
               <span style={{ color: T.n700 }}>發票金額</span>

@@ -22,20 +22,14 @@ function parseShopeeRecon(rows) {
       '蝦皮補助運費', '蝦皮代付運費', '退貨運費',
       'AMS推廣費用', '成交手續費', '其他服務費', '金流與系統處理費',
     ])
-    // 代收付發票金額欄位：I~O（商品原價、賣場商品促銷折扣、退款金額、蝦皮補貼金額、賣家負擔優惠券、賣家負擔蝦幣回饋券、買家支付運費）
-    const INV_COL_NAMES = new Set([
-      '商品原價', '賣場商品促銷折扣', '退款金額', '蝦皮補貼金額',
-      '賣家負擔優惠券', '賣家負擔蝦幣回饋券', '買家支付運費',
-    ])
+    // order_invoice_amount 不再由此處寫入：該欄改存「請款發票金額」（月結銷項發票，
+    // 由使用者在訂單發票步驟輸入，同一組訂單重複存同一值）。原本存的是 I~O 欄加總的
+    // 代收金額，與請款發票語意不同，若繼續寫入會在重傳報表時覆蓋掉使用者填的發票金額。
+    // 代收金額本身仍可由 應入帳 + 手續費 回推，不需另存。
     const feeCols = headers.filter(h => FEE_COL_NAMES.has(h))
-    const invCols  = headers.filter(h => INV_COL_NAMES.has(h))
     return rows.map(r => {
       const feeSum = feeCols.reduce((s, col) => {
         const v = Number(r[col])   // Number('2.50%') = NaN，避免費率欄被誤算
-        return s + (isNaN(v) ? 0 : v)
-      }, 0)
-      const invSum = invCols.reduce((s, col) => {
-        const v = Number(r[col])
         return s + (isNaN(v) ? 0 : v)
       }, 0)
       const payable = num(pick(r, ['錢包入帳金額']))  // Y欄（應入帳）
@@ -46,7 +40,6 @@ function parseShopeeRecon(rows) {
         fee: Math.abs(feeSum),
         payable,
         total,
-        order_invoice_amount: Math.round(invSum * 100) / 100,
         actual_in: null,
         in_date: null,
         payout_date: null,
