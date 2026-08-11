@@ -7,3 +7,10 @@ dist/
 scripts/
 # 本機開發用的 dev server 設定
 .claude/
+
+# 種子資料含客戶姓名／地址／電話。repo 是 public，
+# 這幾個檔一旦被 git add 推上去，git 歷史很難清乾淨。
+03_seed_b1_orders.sql
+04_seed_three_platforms.sql
+05_add_invoice_columns.sql
+06_rebuild_clean_orders.sql
