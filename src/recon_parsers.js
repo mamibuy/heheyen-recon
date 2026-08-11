@@ -43,6 +43,10 @@ function parseShopeeRecon(rows) {
         actual_in: null,
         in_date: null,
         payout_date: null,
+        // 進帳報表自帶訂單成立日期：靠對帳單自動建檔的訂單沒有走過「訂單匯入」，
+        // 不補的話訂單日期會是空的（月份篩選、漏斗、排序都會失準）
+        order_date: excelDate(pick(r, ['訂單成立日期', '訂單日期'])) || null,
+        order_date_fill_only: true,
       }
     }).filter(r => r.key)
   }
