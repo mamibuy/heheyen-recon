@@ -1474,18 +1474,20 @@ function GatewayWorkspace({ gateway, txVersion }) {
   })
   // 訂單發票分組
   // 訂單（代開）發票分組：一張月結銷項發票群組多筆訂單。
-  // 發票開立金額 = 該組訂單的「應收」合計（蝦皮進帳報表的商品原價小計），
-  // 蝦皮再從中內扣手續費與賣家自負優惠券後撥款，剩下的才是應入帳。
-  // 例（2026-07 該份報表小計）：應收 14,600 → 內扣後入帳 12,584。
+  // 應開金額 = 進帳報表的「I欄商品原價 − M欄賣家負擔優惠券」，
+  // 而該值恰等於「應入帳 + 手續費」（Y欄 + 費用欄加總），故直接由現有欄位回推，
+  // 不需另存欄位，既有訂單也能立即套用。
+  // 例（2026-07 該份報表 5 筆）：應開 14,320 → 內扣手續費後入帳 12,584。
+  const ordInvBase = o => (o.payable || 0) + (o.fee_total || 0)
   const ordInvGroups = {}
   shownOrders.forEach(o => {
     if (!o.order_invoice_no) return
     if (!ordInvGroups[o.order_invoice_no]) ordInvGroups[o.order_invoice_no] = {
       invDate: o.order_invoice_date ?? null,
       invAmount: o.order_invoice_amount ?? null,   // 該組的代開發票金額（每筆重複存同一值）
-      totalSum: 0, payableSum: 0, count: 0,
+      baseSum: 0, payableSum: 0, count: 0,
     }
-    ordInvGroups[o.order_invoice_no].totalSum += o.total || 0
+    ordInvGroups[o.order_invoice_no].baseSum += ordInvBase(o)
     ordInvGroups[o.order_invoice_no].payableSum += o.payable || 0
     ordInvGroups[o.order_invoice_no].count++
   })
@@ -2239,7 +2241,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
       ? (ordInvEntryPreview || [])
       : orders.filter(o => ordInvEntryChecked.has(o.id))
     // 代開發票金額＝該組訂單的應收合計（商品原價）；蝦皮再內扣手續費與優惠券後撥款
-    const totalSum = Math.round(selectedOrders.reduce((s, o) => s + (o.total || 0), 0) * 100) / 100
+    const totalSum = Math.round(selectedOrders.reduce((s, o) => s + ordInvBase(o), 0) * 100) / 100
     const payableSum = Math.round(selectedOrders.reduce((s, o) => s + (o.payable || 0), 0) * 100) / 100
     const diff = Math.round((totalSum - amtNum) * 100) / 100
     const isMatch = amtNum > 0 && diff === 0
@@ -2247,9 +2249,9 @@ function GatewayWorkspace({ gateway, txVersion }) {
     return (
       <div>
         <div style={panelLead}>
-          依發票號碼分組核對：一個月開立一張代開發票，金額須等於該組訂單的<strong>應收合計</strong>
-          （蝦皮進帳報表的「商品原價」小計）；蝦皮再從中內扣手續費與賣家自負優惠券後撥款，
-          剩下的才是應入帳。左側色帶與下方明細表的訂單相互對應。
+          依發票號碼分組核對：一個月開立一張代開發票，金額須等於該組訂單的<strong>應開發票金額</strong>
+          合計（進帳報表的 I欄商品原價 − M欄賣家負擔優惠券，等同「應入帳 ＋ 手續費」）；
+          蝦皮再從中內扣手續費後撥款，剩下的才是應入帳。左側色帶與下方明細表的訂單相互對應。
         </div>
         <InvoiceGroupCards
           groups={ordInvGroups} colorIdx={ordInvColorIdx} kind="ord"
@@ -2290,8 +2292,8 @@ function GatewayWorkspace({ gateway, txVersion }) {
                         else setOrdInvEntryChecked(new Set(previewOrders.map(o => o.id)))
                       }} />
                   </th>
-                  {['平台訂單編號', '訂單日期', '應收'].map(c =>
-                    <th key={c} style={{ ...thT, position: 'static', textAlign: c === '應收' ? 'right' : 'left' }}>{c}</th>)}
+                  {['平台訂單編號', '訂單日期', '應開發票金額'].map(c =>
+                    <th key={c} style={{ ...thT, position: 'static', textAlign: c === '應開發票金額' ? 'right' : 'left' }}>{c}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -2308,7 +2310,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
                       }} /></td>
                     <td style={{ ...tdT, fontFamily: 'monospace' }}>{o.ref_no}</td>
                     <td style={tdT}>{o.order_date || '—'}</td>
-                    <td style={{ ...tdT, textAlign: 'right' }}>{(o.total ?? 0).toLocaleString()}</td>
+                    <td style={{ ...tdT, textAlign: 'right' }}>{ordInvBase(o).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2319,7 +2321,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
         {(hasSel || (ordInvEntryPreview && ordInvEntryMethod === 'auto')) && (
           <SumBar tone={isMatch ? 'ok' : amtNum > 0 && diff !== 0 ? 'bad' : 'flat'}>
             <span style={{ fontSize: 13 }}>訂單筆數 <strong>{selectedOrders.length}</strong></span>
-            <span style={{ fontSize: 13 }}>應收合計 <strong>{totalSum.toLocaleString()}</strong></span>
+            <span style={{ fontSize: 13 }}>應開發票金額 <strong>{totalSum.toLocaleString()}</strong></span>
             <span style={{ fontSize: 12, color: T.n600 }}>內扣後入帳 {payableSum.toLocaleString()}</span>
             {amtNum > 0 && <span style={{ fontSize: 13 }}>發票金額 <strong>{amtNum.toLocaleString()}</strong></span>}
             {amtNum > 0 && (
@@ -3227,8 +3229,8 @@ function GatewayWorkspace({ gateway, txVersion }) {
                     </td>
                   </tr>
                   <tr style={mRow}>
-                    <td style={mLabel}>應收合計</td>
-                    <td style={mVal}>{(Math.round(grp.totalSum * 100) / 100).toLocaleString()}</td>
+                    <td style={mLabel}>應開發票金額</td>
+                    <td style={mVal}>{(Math.round(grp.baseSum * 100) / 100).toLocaleString()}</td>
                   </tr>
                   <tr style={mRow}>
                     <td style={mLabel}>代開發票金額</td>
@@ -3236,10 +3238,10 @@ function GatewayWorkspace({ gateway, txVersion }) {
                   </tr>
                   <tr style={mRow}>
                     <td style={mLabel}>核對結果</td>
-                    <td style={{ ...mVal, color: grp.invAmount == null ? T.n600 : Math.abs(grp.totalSum - grp.invAmount) < 0.01 ? T.g700 : T.danger }}>
+                    <td style={{ ...mVal, color: grp.invAmount == null ? T.n600 : Math.abs(grp.baseSum - grp.invAmount) < 0.01 ? T.g700 : T.danger }}>
                       {grp.invAmount == null ? '—'
-                        : Math.abs(grp.totalSum - grp.invAmount) < 0.01 ? '✓ 相符'
-                        : `✗ 差異 ${Math.round((grp.totalSum - grp.invAmount) * 100) / 100}`}
+                        : Math.abs(grp.baseSum - grp.invAmount) < 0.01 ? '✓ 相符'
+                        : `✗ 差異 ${Math.round((grp.baseSum - grp.invAmount) * 100) / 100}`}
                     </td>
                   </tr>
                   <tr style={mRow}>
@@ -3618,7 +3620,7 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
       {keys.map((k, i) => {
         const g = groups[k]
-        const sum = Math.round((g.feeSum ?? g.txFeeSum ?? g.totalSum ?? 0) * 100) / 100
+        const sum = Math.round((g.feeSum ?? g.txFeeSum ?? g.baseSum ?? 0) * 100) / 100
         const amt = g.invAmount
         const ok = amt != null ? Math.abs(sum - amt) < 0.01 : null
         const ci = colorIdx[k] != null ? colorIdx[k] : i % 2
@@ -3650,7 +3652,7 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
               {refs.length > 6 && <Tag tone="neutral" style={{ fontSize: 11, fontWeight: 400 }}>+{refs.length - 6}</Tag>}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 13 }}>
-              <span style={{ color: T.n700 }}>{kind === 'ord' ? '應收合計' : '費用合計'}</span><strong>NT$ {sum.toLocaleString()}</strong>
+              <span style={{ color: T.n700 }}>{kind === 'ord' ? '應開發票金額' : '費用合計'}</span><strong>NT$ {sum.toLocaleString()}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 13 }}>
               <span style={{ color: T.n700 }}>發票金額</span>
