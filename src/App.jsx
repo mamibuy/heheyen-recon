@@ -2255,7 +2255,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
           蝦皮再從中內扣手續費後撥款，剩下的才是應入帳。左側色帶與下方明細表的訂單相互對應。
         </div>
         <InvoiceGroupCards
-          groups={ordInvGroups} colorIdx={ordInvColorIdx} kind="ord"
+          groups={ordInvGroups} colorIdx={ordInvColorIdx} kind="ord" storeKey={gateway}
           orders={shownOrders} onOpen={k => { setViewOrdInvKey(k); setOrdInvDeleteConfirm(false); setOrdInvPopupDate(ordInvGroups[k]?.invDate || '') }} />
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <Field label="發票號碼">
@@ -2345,7 +2345,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
         依發票號碼分組核對：一張發票可群組多筆訂單，發票金額須等於該組訂單的手續費合計。左側色帶與下方明細表的訂單相互對應。
       </div>
       <InvoiceGroupCards
-        groups={invoiceGroups} colorIdx={invColorIdx} kind="fee"
+        groups={invoiceGroups} colorIdx={invColorIdx} kind="fee" storeKey={gateway}
         orders={shownOrders} onOpen={k => setViewInvKey(k)} />
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18, alignItems: 'flex-end' }}>
         <Field label="發票號碼">
@@ -2429,7 +2429,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
           PayUni 服務費（0.2%）是帳戶層月結總額發票，與 LINE Pay 手續費（2.2%）那張分開核對。
         </div>
         <InvoiceGroupCards
-          groups={txInvoiceGroups} colorIdx={{}} kind="tx"
+          groups={txInvoiceGroups} colorIdx={{}} kind="tx" storeKey={gateway}
           orders={shownOrders} onOpen={k => setViewTxInvKey(k)} />
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 18, alignItems: 'flex-end' }}>
           <Field label="發票號碼">
@@ -3619,8 +3619,19 @@ function ConfirmedGroups({ groups, exp, setExp, onRelease, releasingKey }) {
 }
 
 // 群組型發票卡片：一張發票涵蓋哪幾筆訂單、費用合計 vs 發票金額
-function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
+function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen, storeKey }) {
   const keys = Object.keys(groups)
+  const kindName = kind === 'tx' ? '交易處理費發票' : kind === 'ord' ? '代開發票' : '手續費發票'
+  const field = kind === 'tx' ? 'tx_fee_invoice_no' : kind === 'ord' ? 'order_invoice_no' : 'fee_invoice_no'
+  // 收合狀態記在 localStorage：發票張數一多這區塊會很長，把下方輸入欄位擠出畫面。
+  // 依「通路＋發票種類」各記各的，切換頁籤不會被別的頁籤蓋掉。
+  const lsKey = `invcards_open_${storeKey || ''}_${kind}`
+  const [open, setOpen] = useState(() => localStorage.getItem(lsKey) !== '0')
+  useEffect(() => { setOpen(localStorage.getItem(lsKey) !== '0') }, [lsKey])
+  function toggle() {
+    setOpen(v => { localStorage.setItem(lsKey, v ? '0' : '1'); return !v })
+  }
+
   if (!keys.length) {
     return (
       <div style={{ border: `1.5px dashed ${T.divider}`, background: T.bg, borderRadius: T.rPanel,
@@ -3629,14 +3640,31 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
       </div>
     )
   }
-  const field = kind === 'tx' ? 'tx_fee_invoice_no' : kind === 'ord' ? 'order_invoice_no' : 'fee_invoice_no'
+
+  const cards = keys.map((k, i) => {
+    const g = groups[k]
+    const sum = Math.round((g.feeSum ?? g.txFeeSum ?? g.baseSum ?? 0) * 100) / 100
+    const amt = g.invAmount
+    return { k, g, sum, amt, ok: amt != null ? Math.abs(sum - amt) < 0.01 : null, i }
+  })
+  const badCount = cards.filter(c => c.ok === false).length
+  const pendingCount = cards.filter(c => c.ok == null).length
+
   return (
+    <div>
+      <div onClick={toggle} style={{
+        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none',
+        padding: '8px 2px', marginBottom: open ? 10 : 0,
+      }}>
+        <span style={{ fontSize: 11, color: T.n600, transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' }}>▼</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: T.n800 }}>已開立{kindName} · {keys.length} 張</span>
+        {badCount > 0 && <Tag tone="danger" style={{ fontSize: 11 }}>{badCount} 張差異</Tag>}
+        {pendingCount > 0 && <Tag tone="neutral" style={{ fontSize: 11, fontWeight: 400 }}>{pendingCount} 張未填金額</Tag>}
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: T.a700 }}>{open ? '收合' : '展開'}</span>
+      </div>
+      {open && (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 14 }}>
-      {keys.map((k, i) => {
-        const g = groups[k]
-        const sum = Math.round((g.feeSum ?? g.txFeeSum ?? g.baseSum ?? 0) * 100) / 100
-        const amt = g.invAmount
-        const ok = amt != null ? Math.abs(sum - amt) < 0.01 : null
+      {cards.map(({ k, g, sum, amt, ok, i }) => {
         const ci = colorIdx[k] != null ? colorIdx[k] : i % 2
         const refs = orders.filter(o => o[field] === k).map(o => String(o.ref_no || ''))
         const border = ok === false ? T.danger : ok === true ? T.g500 : T.divider
@@ -3683,6 +3711,8 @@ function InvoiceGroupCards({ groups, colorIdx, kind, orders, onOpen }) {
           </div>
         )
       })}
+    </div>
+      )}
     </div>
   )
 }
