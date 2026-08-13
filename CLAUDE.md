@@ -147,6 +147,11 @@ if (row.order_date && !(row.order_date_fill_only && order.order_date)) { ... }
 作法同 `fee_invoice_amount`），由使用者在訂單發票步驟輸入。
 **parser 不再寫入此欄**（原本存 I~O 加總的代收金額，會在重傳報表時覆蓋使用者填的金額）。
 
+明細表「代開發票金額」欄：**已開立**（有 `order_invoice_no`）顯示該組實開金額；
+**未開立**顯示 `payable + fee_total` 回推的應開金額（灰字加註「應開」）。
+未開立時刻意不讀 `order_invoice_amount` —— 舊版 parser 寫入的殘值仍留在 DB
+（6 月三筆未開立訂單），不同步且會讓同樣未開立的訂單有的有值有的空白。
+
 ⚠️ 已知邊界：`payable + fee_total` 實為 I~O 欄加總。目前報表 J/K/L/N/O 全為 0 故與 `I − M`
 一致；若日後出現退款、蝦幣回饋券或買家支付運費則會分歧，屆時需改為逐欄取值並另存欄位。
 

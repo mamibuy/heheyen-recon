@@ -30,18 +30,11 @@
 
 ## 2. 未完成／待決事項
 
-### ⚠️ PII 檔案沒有進 .gitignore（建議優先處理）
-`03_seed_b1_orders.sql`、`04_seed_three_platforms.sql`、`05_add_invoice_columns.sql`、
-`06_rebuild_clean_orders.sql` 含**客戶姓名／地址／電話**，目前是 untracked 但**沒有被
-gitignore**。repo 是 public，哪天手滑一個 `git add .` 就會把個資推上去，而且 git 歷史很難清乾淨。
-
-建議在 `.gitignore` 補上這四個檔案（或 `0[3-6]_*.sql`）。
-使用者知道這件事但一直沒決定要不要加。
-
-### 編輯訂單無法修改「手續費」
-`編輯訂單` modal 已可改「應收」（`total`），但 `fee_total` 仍無法手動修改。
-提過兩次，使用者沒回。若遇到手續費有誤的訂單目前無法修正。
-加法：跟「應收」同一列，`saveEditOrder` 補一行 `fee_total`。
+> 2026-08-11 已完成：PII 種子檔（`0[3-6]_*.sql`）已加入 `.gitignore`；
+> 編輯訂單 modal 已可修改「手續費」（`fee_total`），欄位在「應收」右邊。
+> **注意**：手續費與應入帳是各自獨立的欄位，改手續費**不會**自動重算應入帳，
+> 兩者要同時手動改才會一致（蝦皮「應開發票金額」是用 `payable + fee_total` 回推，
+> 只改其中一邊會讓該金額跟著位移）。
 
 ### 蝦皮代開發票的邊界情況
 現行「應開發票金額」用 `payable + fee_total` 回推，等同 I~O 欄加總。

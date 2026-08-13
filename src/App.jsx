@@ -1385,6 +1385,7 @@ function GatewayWorkspace({ gateway, txVersion }) {
         tx_fee_invoice_no: updates.tx_fee_invoice_no || null,
         // 數字欄位：空字串要轉成 null，不能直接送給 Supabase
         total: updates.total !== '' && updates.total != null ? parseFloat(updates.total) : null,
+        fee_total: updates.fee_total !== '' && updates.fee_total != null ? parseFloat(updates.fee_total) : null,
         payable: updates.payable !== '' && updates.payable != null ? parseFloat(updates.payable) : null,
         actual_in: updates.actual_in !== '' && updates.actual_in != null ? parseFloat(updates.actual_in) : null,
         in_date: updates.in_date || null,
@@ -2728,7 +2729,17 @@ function GatewayWorkspace({ gateway, txVersion }) {
                           </div>
                         ) : o.order_invoice_no ? <span style={{ fontSize: 12, color: T.n500 }}>↳ 同張發票</span> : <span style={{ color: T.n400 }}>—</span>}
                       </td>
-                      {isShopee && <td style={{ ...tdT, textAlign: 'right' }}>{o.order_invoice_amount != null ? o.order_invoice_amount.toLocaleString() : '—'}</td>}
+                      {/* 已開立 → 該組實際開立金額；未開立 → 由應入帳＋手續費回推的應開金額（灰字加註）。
+                          未開立時刻意不看 order_invoice_amount：舊版 parser 曾把代收金額寫進該欄，
+                          留下的殘值不會隨應收／手續費更動而同步。 */}
+                      {isShopee && <td style={{ ...tdT, textAlign: 'right' }}>
+                        {o.order_invoice_no
+                          ? (o.order_invoice_amount != null ? o.order_invoice_amount.toLocaleString() : '—')
+                          : <span style={{ color: T.n500 }}>
+                              {ordInvBase(o).toLocaleString()}
+                              <span style={{ fontSize: 10, color: T.n400, marginLeft: 4 }}>應開</span>
+                            </span>}
+                      </td>}
                       {!isShopee && <td style={{ ...tdT, fontFamily: 'monospace', fontSize: 11, color: T.n600 }}>{o.tx_code || '—'}</td>}
                       <td style={{ ...tdT, color: T.n700 }}>{o.order_date ? o.order_date.slice(0, 10) : '—'}</td>
                       <td style={{ ...tdT, textAlign: 'right', color: T.n700 }}>{o.total?.toLocaleString()}</td>
@@ -2988,6 +2999,9 @@ function GatewayWorkspace({ gateway, txVersion }) {
             <div style={{ display: 'flex', gap: 10 }}>
               <Field label="應收">
                 <input type="number" value={editOrder.total ?? ''} onChange={e => setEditOrder(p => ({ ...p, total: e.target.value }))} style={inpT} />
+              </Field>
+              <Field label="手續費">
+                <input type="number" value={editOrder.fee_total ?? ''} onChange={e => setEditOrder(p => ({ ...p, fee_total: e.target.value }))} style={inpT} />
               </Field>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
