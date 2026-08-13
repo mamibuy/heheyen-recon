@@ -642,6 +642,19 @@ function GatewayWorkspace({ gateway, txVersion }) {
   const [deleteMsg, setDeleteMsg] = useState('')
   const [editOrder, setEditOrder] = useState(null)
   const [editMsg, setEditMsg] = useState('')
+  // 入帳差異的原因註記：點明細表「差異」欄開啟，寫入 diff_note
+  // （不可用 note —— 那是出貨報表帶進來的買家訂單備註）
+  const [diffNoteOrder, setDiffNoteOrder] = useState(null)
+  const [diffNoteText, setDiffNoteText] = useState('')
+  const [diffNoteMsg, setDiffNoteMsg] = useState('')
+  // 差異視窗內的發票欄位（逐筆訂單，與群組層的手續費／代開發票分開）
+  const [diffInvNo, setDiffInvNo] = useState('')
+  const [diffInvDate, setDiffInvDate] = useState('')
+  const [diffInvAmount, setDiffInvAmount] = useState('')
+  const [diffInvUrl, setDiffInvUrl] = useState(null)
+  const [diffInvUploading, setDiffInvUploading] = useState(false)
+  const [diffInvUploadError, setDiffInvUploadError] = useState('')
+  const diffInvFileRef = useRef(null)
   const [viewInvKey, setViewInvKey] = useState(null)
   const [viewTxInvKey, setViewTxInvKey] = useState(null)
   const [viewOrdInvKey, setViewOrdInvKey] = useState(null)
@@ -1370,6 +1383,61 @@ function GatewayWorkspace({ gateway, txVersion }) {
     localStorage.removeItem(`txinv_amount_${viewTxInvKey}`)
     localStorage.removeItem(`txinv_date_${viewTxInvKey}`)
     setViewTxInvKey(null); loadOrders()
+  }
+
+  function openDiffNote(o) {
+    setDiffNoteOrder(o)
+    setDiffNoteText(o.diff_note || '')
+    setDiffInvNo(o.diff_invoice_no || '')
+    setDiffInvDate(o.diff_invoice_date || '')
+    setDiffInvAmount(o.diff_invoice_amount ?? '')
+    setDiffInvUrl(o.diff_invoice_pdf_url || null)
+    setDiffNoteMsg(''); setDiffInvUploadError('')
+  }
+  async function saveDiffNote() {
+    setDiffNoteMsg('儲存中…')
+    const { error } = await supabase.from('shipping_orders')
+      .update({
+        diff_note: diffNoteText.trim() || null,
+        diff_invoice_no: diffInvNo.trim() || null,
+        diff_invoice_date: diffInvDate || null,
+        // 數字欄位不可傳空字串
+        diff_invoice_amount: diffInvAmount !== '' && diffInvAmount != null ? parseFloat(diffInvAmount) : null,
+      })
+      .eq('id', diffNoteOrder.id)
+    if (error) { setDiffNoteMsg('錯誤：' + error.message); return }
+    setDiffNoteOrder(null); setDiffNoteMsg(''); loadOrders()
+  }
+  // 附件沿用 fee/txfee 的做法：直接上傳並寫回 DB，不等按「儲存」
+  async function uploadDiffInvFile(e) {
+    const f = e.target.files?.[0]; if (!f) return
+    setDiffInvUploading(true); setDiffInvUploadError('')
+    const oldPath = storagePath(diffInvUrl)
+    if (oldPath) {
+      const { error: rmErr } = await supabase.storage.from('invoices').remove([oldPath])
+      if (rmErr) console.warn('Storage remove:', rmErr.message)
+    }
+    const ext = (f.name.match(/\.[a-z0-9]+$/i) || ['.pdf'])[0]
+    const path = `diff/${diffNoteOrder.ref_no}_${Date.now()}${ext}`
+    const { error: upErr } = await supabase.storage.from('invoices').upload(path, f)
+    if (upErr) { setDiffInvUploadError(`Storage 上傳失敗：${upErr.message}`); setDiffInvUploading(false); return }
+    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+    const { error: dbErr } = await supabase.from('shipping_orders')
+      .update({ diff_invoice_pdf_url: data.publicUrl }).eq('id', diffNoteOrder.id)
+    if (dbErr) { setDiffInvUploadError(`DB 更新失敗：${dbErr.message}`); setDiffInvUploading(false); return }
+    setDiffInvUrl(data.publicUrl); setDiffInvUploading(false); loadOrders()
+  }
+  async function removeDiffInvFile() {
+    setDiffInvUploading(true); setDiffInvUploadError('')
+    const oldPath = storagePath(diffInvUrl)
+    const { error: dbErr } = await supabase.from('shipping_orders')
+      .update({ diff_invoice_pdf_url: null }).eq('id', diffNoteOrder.id)
+    if (dbErr) { setDiffInvUploadError(`DB 更新失敗：${dbErr.message}`); setDiffInvUploading(false); return }
+    if (oldPath) {
+      const { error: rmErr } = await supabase.storage.from('invoices').remove([oldPath])
+      if (rmErr) console.warn('Storage remove:', rmErr.message)
+    }
+    setDiffInvUrl(null); setDiffInvUploading(false); loadOrders()
   }
 
   async function saveEditOrder(updates) {
@@ -2759,10 +2827,27 @@ function GatewayWorkspace({ gateway, txVersion }) {
                           <span style={{ fontSize: 12, color: T.n500, cursor: 'pointer' }} onClick={() => setViewBankGroupKey(bankGroupKey)}>↳ 同批入帳</span>
                         ) : o.in_date || '—'}
                       </td>
+                      {/* 差異可點擊記錄原因（寫入 diff_note）；已有註記的顯示在數字下方 */}
                       <td style={{ ...tdT, textAlign: 'right', whiteSpace: 'nowrap',
                         fontWeight: diff == null || diff === 0 ? 600 : 700,
-                        color: diff == null ? T.n400 : diff === 0 ? T.g700 : T.danger }}>
-                        {diff == null ? '—' : diff === 0 ? '0 ✓' : (diff > 0 ? '+' + diff : String(diff))}
+                        cursor: diff == null ? 'default' : 'pointer',
+                        color: diff == null ? T.n400 : diff === 0 ? T.g700 : T.danger }}
+                        title={diff == null ? undefined : (o.diff_note || '點擊記錄差異原因')}
+                        onClick={diff == null ? undefined : () => openDiffNote(o)}>
+                        <div style={{ textDecoration: diff != null && diff !== 0 ? 'underline' : 'none' }}>
+                          {diff == null ? '—' : diff === 0 ? '0 ✓' : (diff > 0 ? '+' + diff : String(diff))}
+                        </div>
+                        {o.diff_note && (
+                          <div style={{ fontSize: 11, fontWeight: 400, color: T.n600, marginTop: 2,
+                            maxWidth: 130, whiteSpace: 'normal', lineHeight: 1.4 }}>
+                            {o.diff_note.length > 24 ? o.diff_note.slice(0, 24) + '…' : o.diff_note}
+                          </div>
+                        )}
+                        {(o.diff_invoice_no || o.diff_invoice_pdf_url) && (
+                          <div style={{ fontSize: 11, fontWeight: 400, color: T.a700, marginTop: 2, whiteSpace: 'nowrap' }}>
+                            {o.diff_invoice_pdf_url ? '📎 ' : ''}{o.diff_invoice_no || '已附檔'}
+                          </div>
+                        )}
                       </td>
                       <td style={tdT}>
                         <Tag tone={statusTone(o.recon_status)}>{o.recon_status || '—'}</Tag>
@@ -2818,6 +2903,18 @@ function GatewayWorkspace({ gateway, txVersion }) {
         <div style={{ marginTop: 12, fontSize: 12, color: T.n600 }}>
           顯示 {searched.length} 筆 · 差異與狀態欄以顏色標示，一眼看出需要處理的訂單。
         </div>
+        {/* 蝦皮每月最後一筆入帳會被扣掉上個月的代開發票總額，差異屬正常，提醒別誤判 */}
+        {isShopee && (
+          <div style={{ marginTop: 18, border: `1.5px solid ${T.divider}`, background: T.n100,
+            borderRadius: T.rPanel, padding: '18px 22px' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: T.navy, lineHeight: 1.5 }}>
+              每月會有一筆金額入帳有差異，是前月代開發票總額
+            </div>
+            <div style={{ marginTop: 8, fontSize: 13, color: T.n600, lineHeight: 1.7 }}>
+              例：六月代開費用於七月最後一筆入帳金額中扣除
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 教學 SOP 側欄：依對帳步驟分卡，每步一段文字 + 一張截圖 ── */}
@@ -2966,6 +3063,77 @@ function GatewayWorkspace({ gateway, txVersion }) {
           </div>
         </div>
       )}
+
+      {/* 入帳差異原因 modal */}
+      {diffNoteOrder && (() => {
+        const d = calcDiff(diffNoteOrder)
+        return (
+          <div style={overlay} onClick={() => setDiffNoteOrder(null)}>
+            <div style={modal} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0, fontSize: 20, color: T.navy }}>入帳差異原因</h3>
+              <p style={{ fontSize: 13, color: T.n600, margin: '0 0 12px', fontFamily: 'monospace' }}>{diffNoteOrder.ref_no}</p>
+              <div style={{ display: 'flex', gap: 18, fontSize: 13, background: T.n100,
+                borderRadius: T.rInner, padding: '10px 14px', marginBottom: 14 }}>
+                <span style={{ color: T.n700 }}>應入帳 <strong style={{ color: T.text }}>{diffNoteOrder.payable != null ? diffNoteOrder.payable.toLocaleString() : '—'}</strong></span>
+                <span style={{ color: T.n700 }}>實際入帳 <strong style={{ color: T.text }}>{diffNoteOrder.actual_in != null ? diffNoteOrder.actual_in.toLocaleString() : '—'}</strong></span>
+                <span style={{ color: T.n700, marginLeft: 'auto' }}>差異 <strong style={{ color: d === 0 ? T.g700 : T.danger }}>
+                  {d == null ? '—' : d === 0 ? '0' : (d > 0 ? '+' + d : String(d))}</strong></span>
+              </div>
+              <Field label="原因／備註">
+                <textarea value={diffNoteText} onChange={e => setDiffNoteText(e.target.value)} rows={3}
+                  placeholder="例：扣除六月代開發票總額"
+                  style={{ ...inpT, borderRadius: T.rInner, resize: 'vertical', lineHeight: 1.6 }} />
+              </Field>
+              <p style={{ fontSize: 12, color: T.n600, margin: '4px 0 0' }}>
+                存成訂單的「差異原因」，與出貨報表帶進來的買家備註分開。留空即清除。
+              </p>
+
+              <div style={{ borderTop: `1px solid ${T.divider}`, margin: '16px 0 12px', paddingTop: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.n800, marginBottom: 8 }}>對應發票</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Field label="發票號碼">
+                    <input value={diffInvNo} onChange={e => setDiffInvNo(e.target.value)}
+                      placeholder="AB-12345678" style={inpT} />
+                  </Field>
+                  <Field label="發票日期">
+                    <input type="date" value={diffInvDate} onChange={e => setDiffInvDate(e.target.value)} style={inpT} />
+                  </Field>
+                  <Field label="金額">
+                    <input type="number" value={diffInvAmount} onChange={e => setDiffInvAmount(e.target.value)}
+                      placeholder="0" style={inpT} />
+                  </Field>
+                </div>
+                <Field label="附件">
+                  <input ref={diffInvFileRef} type="file" accept="application/pdf,image/*"
+                    style={{ display: 'none' }} onChange={uploadDiffInvFile} />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={() => diffInvFileRef.current.click()} style={{ ...btnSec, fontSize: 12 }} disabled={diffInvUploading}>
+                      {diffInvUploading ? '上傳中…' : diffInvUrl ? '重新上傳' : '上傳檔案'}
+                    </button>
+                    {diffInvUrl && (
+                      <>
+                        <a href={diffInvUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 12, color: T.a700, textDecoration: 'underline' }}>查看附件</a>
+                        <button onClick={removeDiffInvFile} disabled={diffInvUploading}
+                          style={{ ...btnSec, fontSize: 12, color: T.danger, borderColor: T.danger }}>移除</button>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: T.n600, marginTop: 6 }}>
+                    支援 PDF 與圖片；選檔後立即上傳，不需按儲存。
+                  </div>
+                  {diffInvUploadError && <div style={{ fontSize: 12, color: T.danger, marginTop: 4 }}>{diffInvUploadError}</div>}
+                </Field>
+              </div>
+              {diffNoteMsg && <p style={{ fontSize: 13, color: diffNoteMsg.includes('錯誤') ? T.danger : T.n600, margin: '4px 0' }}>{diffNoteMsg}</p>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                <button onClick={() => setDiffNoteOrder(null)} style={btnSec}>取消</button>
+                <button onClick={saveDiffNote} style={btnPri}>儲存</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 編輯 modal */}
       {editOrder && (

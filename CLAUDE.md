@@ -73,6 +73,18 @@ npm run build   # 編譯，部署前必跑確認無錯
 官網›LINE Pay 的「發票核對」步驟顯示為**手續費發票**（該通路有兩種發票，需區隔）。
 原本的獨立「交易處理費」步驟已移除（D-2 已逐筆提供 tx_fee，屬重複輸入）。
 
+### 入帳差異註記（`diff_*` 欄位，sql/07）
+明細表「差異」欄有數字時可點，開啟視窗記錄原因與對應發票
+（號碼／日期／金額／附件）。附件用既有的 Storage bucket `invoices`，路徑前綴 `diff/`，
+選檔即上傳並寫回 DB，不等按「儲存」。
+
+**不可改用 `note`** —— 那是出貨報表帶進來的買家訂單備註（「星期一至五收包裹」之類），
+且 `reconcile` 自動建檔會寫入「對帳單匯入」。
+也不可沿用 `fee_invoice_*` / `order_invoice_*` —— 那兩組是群組層欄位（同張發票每筆重複存同值），
+`diff_invoice_*` 記的是單筆訂單的對應發票。
+
+蝦皮明細表最下方有固定說明：每月最後一筆入帳會扣掉前月代開發票總額，該筆差異屬正常。
+
 ### 發票分組卡片（`InvoiceGroupCards`）
 代開／手續費／交易處理費三種發票共用同一個元件，卡片區塊可收合，
 狀態存 `localStorage['invcards_open_{gateway}_{kind}']`（`'0'` = 收合），
@@ -209,7 +221,8 @@ UI 有「略過格式檢查」checkbox 供平台改欄位名時強制執行。
 `id, ref_no, sa_no, platform, total, fee_total, payable, actual_in, in_date, bank_deposit,
 order_date, pay_method, note, recon_status, invoice_check, fee_invoice_no, fee_invoice_date,
 fee_invoice_amount, order_invoice_no, order_invoice_date, order_invoice_amount, tx_code,
-tx_fee, tx_fee_invoice_no, fee_invoice_pdf_url, tx_fee_invoice_pdf_url`
+tx_fee, tx_fee_invoice_no, fee_invoice_pdf_url, tx_fee_invoice_pdf_url,
+diff_note, diff_invoice_no, diff_invoice_date, diff_invoice_amount, diff_invoice_pdf_url`
 
 - `recon_status`：`待出貨` / `已出貨` / `平台已結算` / `已入帳` / `已對帳`
 - `platform`：`蝦皮` / `LINE商城` / `酷澎` / `官網` / `兆豐`
