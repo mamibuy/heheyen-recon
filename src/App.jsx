@@ -1451,9 +1451,12 @@ function GatewayWorkspace({ gateway, txVersion }) {
         order_invoice_no: updates.order_invoice_no || null,
         fee_invoice_no: updates.fee_invoice_no || null,
         tx_fee_invoice_no: updates.tx_fee_invoice_no || null,
+        tx_code: updates.tx_code || null,
+        order_date: updates.order_date || null,
         // 數字欄位：空字串要轉成 null，不能直接送給 Supabase
         total: updates.total !== '' && updates.total != null ? parseFloat(updates.total) : null,
         fee_total: updates.fee_total !== '' && updates.fee_total != null ? parseFloat(updates.fee_total) : null,
+        tx_fee: updates.tx_fee !== '' && updates.tx_fee != null ? parseFloat(updates.tx_fee) : null,
         payable: updates.payable !== '' && updates.payable != null ? parseFloat(updates.payable) : null,
         actual_in: updates.actual_in !== '' && updates.actual_in != null ? parseFloat(updates.actual_in) : null,
         in_date: updates.in_date || null,
@@ -3154,6 +3157,17 @@ function GatewayWorkspace({ gateway, txVersion }) {
               <input value={editOrder.order_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, order_invoice_no: e.target.value }))}
                 placeholder="AB-12345678" style={inpT} />
             </Field>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {!isShopee && (
+                <Field label="對應碼">
+                  <input value={editOrder.tx_code || ''} onChange={e => setEditOrder(p => ({ ...p, tx_code: e.target.value }))}
+                    placeholder="金流報表的支付對應碼" style={inpT} />
+                </Field>
+              )}
+              <Field label="訂單日期">
+                <input type="date" value={editOrder.order_date || ''} onChange={e => setEditOrder(p => ({ ...p, order_date: e.target.value }))} style={inpT} />
+              </Field>
+            </div>
             <Field label="手續費發票號碼">
               <input value={editOrder.fee_invoice_no || ''} onChange={e => setEditOrder(p => ({ ...p, fee_invoice_no: e.target.value }))}
                 placeholder="AB-12345678" style={inpT} />
@@ -3171,7 +3185,16 @@ function GatewayWorkspace({ gateway, txVersion }) {
               <Field label="手續費">
                 <input type="number" value={editOrder.fee_total ?? ''} onChange={e => setEditOrder(p => ({ ...p, fee_total: e.target.value }))} style={inpT} />
               </Field>
+              {!isShopee && (
+                <Field label="交易處理費">
+                  <input type="number" value={editOrder.tx_fee ?? ''} onChange={e => setEditOrder(p => ({ ...p, tx_fee: e.target.value }))} style={inpT} />
+                </Field>
+              )}
             </div>
+            {/* 費用與應入帳各自獨立，不會互相重算 —— 改了費用要自己把應入帳一併改掉 */}
+            <p style={{ fontSize: 12, color: T.n600, margin: '-4px 0 10px' }}>
+              手續費／交易處理費不會自動重算應入帳，兩邊要一起改。
+            </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <Field label="應入帳">
                 <input type="number" value={editOrder.payable ?? ''} onChange={e => setEditOrder(p => ({ ...p, payable: e.target.value }))} style={inpT} />
